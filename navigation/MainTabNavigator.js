@@ -12,7 +12,7 @@ const HomeStack = createStackNavigator({
 });
 
 HomeStack.navigationOptions = {
-  tabBarLabel: 'Home',
+  tabBarLabel: '통장정보',
   tabBarIcon: ({ focused }) => (
     <TabBarIcon
       focused={focused}
