@@ -4,7 +4,7 @@ import {
   Alert, Picker, ScrollView, StyleSheet, Text, View,
 } from 'react-native';
 
-import { MonoText } from '../components/StyledText';
+// import { MonoText } from '../components/StyledText';
 
 const styles = StyleSheet.create({
   container: {
@@ -30,6 +30,7 @@ type Props = {};
 
 type State = {
   isEmptyAccount?: boolean,
+  title: string,
 };
 
 export default class HomeScreen extends React.Component<Props, State> {
@@ -40,6 +41,7 @@ export default class HomeScreen extends React.Component<Props, State> {
   state = {
     isEmptyAccount: undefined,
     accounts: [],
+    title: '',
   };
 
   componentDidMount() {
@@ -47,12 +49,22 @@ export default class HomeScreen extends React.Component<Props, State> {
   }
 
   requestAccountList() {
-    return fetch('https://facebook.github.io/react-native/movies.json')
+    return fetch(
+      'https://testapi.open-platform.or.kr/v1.0/user/me?user_seq_no=0100000001&tran_dtime=20181026213437',
+      {
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json; charset=UTF-8',
+          Authorization: 'Bearer 074c68d8-37be-4566-9c1a-ae06fff26ef3',
+        },
+      },
+    )
       .then(response => response.json())
       .then((responseJson) => {
         this.setState(
           {
-            isEmptyAccount: false,
+            isEmptyAccount: true,
+            title: responseJson.user_name,
           },
           () => {},
         );
@@ -63,7 +75,7 @@ export default class HomeScreen extends React.Component<Props, State> {
   }
 
   render() {
-    const { isEmptyAccount, accounts } = this.state;
+    const { isEmptyAccount, accounts, title } = this.state;
 
     return (
       <View style={styles.container}>
@@ -85,6 +97,7 @@ export default class HomeScreen extends React.Component<Props, State> {
         {isEmptyAccount && (
           <View style={styles.emptyAccount}>
             <Text>add Account</Text>
+            <Text>{title}</Text>
           </View>
         )}
         {!isEmptyAccount && (

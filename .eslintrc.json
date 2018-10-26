@@ -2,6 +2,9 @@
   "parser": "babel-eslint",
   "extends": ["airbnb", "plugin:flowtype/recommended"],
   "plugins": ["react", "jsx-a11y", "import", "react-native", "flowtype"],
+  "env": {
+    "browser": true
+  },
   "rules": {
     "global-require": 0,
     "no-underscore-dangle": 0,
