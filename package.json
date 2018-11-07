@@ -10,11 +10,15 @@
     "test": "node ./node_modules/jest/bin/jest.js --watchAll"
   },
   "jest": {
-    "preset": "jest-expo"
+    "preset": "jest-expo",
+    "setupFiles": [
+      "<rootDir>/jest-setup.js"
+    ]
   },
   "dependencies": {
     "@expo/samples": "2.1.1",
     "expo": "^30.0.1",
+    "moment": "^2.22.2",
     "react": "16.3.1",
     "react-native": "https://github.com/expo/react-native/archive/sdk-30.0.0.tar.gz",
     "react-navigation": "^2.16.0"
@@ -29,6 +33,7 @@
     "eslint-plugin-react": "^7.11.1",
     "flow-bin": "^0.83.0",
     "jest-expo": "30.0.0",
-    "prettier-eslint": "^8.8.2"
+    "prettier-eslint": "^8.8.2",
+    "react-test-renderer": "^16.6.0"
   }
 }

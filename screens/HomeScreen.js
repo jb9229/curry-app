@@ -1,10 +1,10 @@
 // @flow
 import React from 'react';
 import {
-  Alert, Picker, ScrollView, StyleSheet, Text, View,
+  Picker, ScrollView, StyleSheet, Text, View,
 } from 'react-native';
 
-// import { MonoText } from '../components/StyledText';
+import DivAccountList from './div_account/DivAccoutList';
 
 const styles = StyleSheet.create({
   container: {
@@ -30,7 +30,7 @@ type Props = {};
 
 type State = {
   isEmptyAccount?: boolean,
-  title: string,
+  fintechUseNum: string,
 };
 
 export default class HomeScreen extends React.Component<Props, State> {
@@ -41,41 +41,27 @@ export default class HomeScreen extends React.Component<Props, State> {
   state = {
     isEmptyAccount: undefined,
     accounts: [],
-    title: '',
+    accountDescript: null,
+    fintechUseNum: null,
   };
 
   componentDidMount() {
-    this.requestAccountList();
+    this.requestAccounts();
   }
 
-  requestAccountList() {
-    return fetch(
-      'https://testapi.open-platform.or.kr/v1.0/user/me?user_seq_no=0100000001&tran_dtime=20181026213437',
-      {
-        headers: {
-          Accept: 'application/json',
-          'Content-Type': 'application/json; charset=UTF-8',
-          Authorization: 'Bearer 074c68d8-37be-4566-9c1a-ae06fff26ef3',
-        },
-      },
-    )
-      .then(response => response.json())
-      .then((responseJson) => {
-        this.setState(
-          {
-            isEmptyAccount: true,
-            title: responseJson.user_name,
-          },
-          () => {},
-        );
-      })
-      .catch((error) => {
-        Alert.alert('handleLoadingError', error);
-      });
+  requestAccounts() {
+    this.setState({
+      isEmptyAccount: false,
+      accounts: [],
+      accountDescript: '월 용돈',
+      fintechUseNum: '101600000169321934052424',
+    });
   }
 
   render() {
-    const { isEmptyAccount, accounts, title } = this.state;
+    const {
+      isEmptyAccount, accounts, fintechUseNum, accountDescript,
+    } = this.state;
 
     return (
       <View style={styles.container}>
@@ -89,19 +75,15 @@ export default class HomeScreen extends React.Component<Props, State> {
             <Picker.Item label="하나 정원 카드" value="hanaAccountJeongwon" />
           </Picker>
         </View>
-        {isEmptyAccount === undefined && (
-          <View style={styles.emptyAccount}>
-            <Text>쪼갠 통장 로딩 중....</Text>
-          </View>
-        )}
         {isEmptyAccount && (
           <View style={styles.emptyAccount}>
-            <Text>add Account</Text>
-            <Text>{title}</Text>
+            <Text>Add Account</Text>
           </View>
         )}
         {!isEmptyAccount && (
-          <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer} />
+          <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
+            <DivAccountList accountDescript={accountDescript} fintech_use_num={fintechUseNum} />
+          </ScrollView>
         )}
       </View>
     );
