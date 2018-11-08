@@ -1,22 +1,7 @@
 import React from 'react';
-import { ScrollView, StyleSheet } from 'react-native';
-import { ExpoLinksView } from '@expo/samples';
-
-export default class LinksScreen extends React.Component {
-  static navigationOptions = {
-    title: '통장 추가',
-  };
-
-  render() {
-    return (
-      <ScrollView style={styles.container}>
-        {/* Go ahead and delete ExpoLinksView and replace it with your
-           * content, we just wanted to provide you with some helpful links */}
-        <ExpoLinksView />
-      </ScrollView>
-    );
-  }
-}
+import {
+  Button, ScrollView, StyleSheet, Text, TextInput, View,
+} from 'react-native';
 
 const styles = StyleSheet.create({
   container: {
@@ -25,3 +10,29 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
   },
 });
+export default class LinksScreen extends React.Component {
+  static navigationOptions = {
+    title: '통장 추가',
+  };
+
+  createAccount = () => {};
+
+  render() {
+    return (
+      <ScrollView style={styles.container}>
+        <View>
+          <Text>통장 별칭: </Text>
+          <TextInput placeholder="통장 설명" />
+        </View>
+        <View>
+          <Button
+            onPress={this.createAccount}
+            title="통장 생성"
+            color="#841584"
+            accessibilityLabel="Learn more about this purple button"
+          />
+        </View>
+      </ScrollView>
+    );
+  }
+}

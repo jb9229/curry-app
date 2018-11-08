@@ -30,7 +30,7 @@ const LinksStack = createStackNavigator({
 });
 
 LinksStack.navigationOptions = {
-  tabBarLabel: 'Links',
+  tabBarLabel: '통장생성',
   tabBarIcon: ({ focused }) => (
     <TabBarIcon
       focused={focused}

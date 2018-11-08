@@ -1,7 +1,7 @@
 // @flow
 import React from 'react';
 import {
-  Picker, ScrollView, StyleSheet, Text, View,
+  Button, Picker, ScrollView, StyleSheet, Text, View,
 } from 'react-native';
 
 import DivAccountList from './div_account/DivAccoutList';
@@ -58,6 +58,12 @@ export default class HomeScreen extends React.Component<Props, State> {
     });
   }
 
+  addAccount = () => {
+    this.props.navigation.navigate('Links');
+  };
+
+  deleteAccount = () => {};
+
   render() {
     const {
       isEmptyAccount, accounts, fintechUseNum, accountDescript,
@@ -74,6 +80,20 @@ export default class HomeScreen extends React.Component<Props, State> {
             <Picker.Item label="하나 진범 카드" value="hanaAccountJinbeom" />
             <Picker.Item label="하나 정원 카드" value="hanaAccountJeongwon" />
           </Picker>
+        </View>
+        <View>
+          <Button
+            onPress={this.addAccount}
+            title="추가"
+            color="#841584"
+            accessibilityLabel="Add Account"
+          />
+          <Button
+            onPress={this.deleteAccount}
+            title="삭제(통제해제)"
+            color="#841584"
+            accessibilityLabel="Delete Account"
+          />
         </View>
         {isEmptyAccount && (
           <View style={styles.emptyAccount}>
