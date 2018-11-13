@@ -85,11 +85,7 @@ export default class DivAccountList extends React.Component<Props, State> {
     for(var item in newDivAccounts) {
       let defaultDivAccounts  = divAccounts[0];
 
-      console.log(defaultDivAccounts.balance);
-
       defaultDivAccounts.balance  = defaultDivAccounts.balance - newDivAccounts[item].balance;
-
-      console.log(defaultDivAccounts.balance);
     }
 
     return divAccounts;
@@ -99,7 +95,6 @@ export default class DivAccountList extends React.Component<Props, State> {
     return fetch(`${serverApiUrl_divAccounts}${oriAccountId}`)
       .then(response => response.json())
       .then((responseJson) => {
-        console.log(responseJson);
         this.addDivAccount(responseJson);
       })
       .catch((error) => {

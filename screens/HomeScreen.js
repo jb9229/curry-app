@@ -1,10 +1,11 @@
 // @flow
 import React from 'react';
 import {
-  Button, Picker, ScrollView, StyleSheet, Text, View,
+  Alert, Button, Picker, ScrollView, StyleSheet, Text, View,
 } from 'react-native';
 
 import DivAccountList from './div_account/DivAccoutList';
+import { serverApiUrl_oriAccounts } from '../constants/Network';
 
 const styles = StyleSheet.create({
   container: {
@@ -46,17 +47,32 @@ export default class HomeScreen extends React.Component<Props, State> {
   };
 
   componentDidMount() {
-    this.requestAccounts();
+    this.requestAccounts(1);
   }
 
-  requestAccounts() {
+  requestAccounts = (userId) => {
     this.setState({
       isEmptyAccount: false,
       accounts: [],
       accountDescript: '월 용돈',
       fintechUseNum: '101600000169321934052424',
+      accountId: null,
     });
-  }
+
+    return fetch(`${serverApiUrl_oriAccounts}${userId}`)
+      .then(response => response.json())
+      .then((responseJson) => {
+        console.log(responseJson);
+        this.setState({
+          ...this.state,
+          accounts: responseJson,
+        });
+      })
+      .catch((error) => {
+        Alert.alert('handleLoadingError', error.message);
+        return error;
+      });
+  };
 
   addAccount = () => {
     this.props.navigation.navigate('Links');
@@ -66,19 +82,21 @@ export default class HomeScreen extends React.Component<Props, State> {
 
   render() {
     const {
-      isEmptyAccount, accounts, fintechUseNum, accountDescript,
+      isEmptyAccount, accounts, fintechUseNum, accountDescript, accountId,
     } = this.state;
+
+    const accountItems = this.state.accounts.map( (s, i) => {
+      return <Picker.Item key={i} value={s.description} label={s.description} />
+      });
 
     return (
       <View style={styles.container}>
         <View style={styles.accountPicker}>
           <Picker
-            selectedValue={accounts}
             style={{ height: 50, width: 200 }}
-            onValueChange={(itemValue, itemIndex) => this.setState({ accounts: itemValue })}
+            onValueChange={(itemValue, itemIndex) => this.setState({ accountId: itemValue })}
           >
-            <Picker.Item label="하나 진범 카드" value="hanaAccountJinbeom" />
-            <Picker.Item label="하나 정원 카드" value="hanaAccountJeongwon" />
+            {accountItems}
           </Picker>
         </View>
         <View>

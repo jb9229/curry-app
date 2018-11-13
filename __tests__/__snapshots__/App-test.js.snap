@@ -157,20 +157,7 @@ exports[`App snapshot renders the root without loading screen 1`] = `
                         }
                       >
                         <RCTPicker
-                          items={
-                            Array [
-                              Object {
-                                "label": "하나 진범 카드",
-                                "textColor": undefined,
-                                "value": "hanaAccountJinbeom",
-                              },
-                              Object {
-                                "label": "하나 정원 카드",
-                                "textColor": undefined,
-                                "value": "hanaAccountJeongwon",
-                              },
-                            ]
-                          }
+                          items={Array []}
                           onChange={[Function]}
                           onResponderTerminationRequest={[Function]}
                           onStartShouldSetResponder={[Function]}
@@ -186,22 +173,125 @@ exports[`App snapshot renders the root without loading screen 1`] = `
                         />
                       </View>
                     </View>
-                    <View
-                      style={
-                        Object {
-                          "alignItems": "center",
-                          "flex": 1,
-                          "justifyContent": "center",
+                    <View>
+                      <View
+                        accessibilityComponentType="button"
+                        accessibilityLabel="Add Account"
+                        accessibilityTraits={
+                          Array [
+                            "button",
+                          ]
                         }
-                      }
-                    >
-                      <Text
                         accessible={true}
-                        allowFontScaling={true}
-                        ellipsizeMode="tail"
+                        collapsable={undefined}
+                        hasTVPreferredFocus={undefined}
+                        hitSlop={undefined}
+                        isTVSelectable={true}
+                        nativeID={undefined}
+                        onLayout={undefined}
+                        onResponderGrant={[Function]}
+                        onResponderMove={[Function]}
+                        onResponderRelease={[Function]}
+                        onResponderTerminate={[Function]}
+                        onResponderTerminationRequest={[Function]}
+                        onStartShouldSetResponder={[Function]}
+                        style={
+                          Object {
+                            "opacity": 1,
+                          }
+                        }
+                        testID={undefined}
+                        tvParallaxProperties={undefined}
                       >
-                        쪼갠 통장 로딩 중....
-                      </Text>
+                        <View
+                          style={
+                            Array [
+                              Object {},
+                            ]
+                          }
+                        >
+                          <Text
+                            accessible={true}
+                            allowFontScaling={true}
+                            disabled={undefined}
+                            ellipsizeMode="tail"
+                            style={
+                              Array [
+                                Object {
+                                  "color": "#007AFF",
+                                  "fontSize": 18,
+                                  "padding": 8,
+                                  "textAlign": "center",
+                                },
+                                Object {
+                                  "color": "#841584",
+                                },
+                              ]
+                            }
+                          >
+                            추가
+                          </Text>
+                        </View>
+                      </View>
+                      <View
+                        accessibilityComponentType="button"
+                        accessibilityLabel="Delete Account"
+                        accessibilityTraits={
+                          Array [
+                            "button",
+                          ]
+                        }
+                        accessible={true}
+                        collapsable={undefined}
+                        hasTVPreferredFocus={undefined}
+                        hitSlop={undefined}
+                        isTVSelectable={true}
+                        nativeID={undefined}
+                        onLayout={undefined}
+                        onResponderGrant={[Function]}
+                        onResponderMove={[Function]}
+                        onResponderRelease={[Function]}
+                        onResponderTerminate={[Function]}
+                        onResponderTerminationRequest={[Function]}
+                        onStartShouldSetResponder={[Function]}
+                        style={
+                          Object {
+                            "opacity": 1,
+                          }
+                        }
+                        testID={undefined}
+                        tvParallaxProperties={undefined}
+                      >
+                        <View
+                          style={
+                            Array [
+                              Object {},
+                            ]
+                          }
+                        >
+                          <Text
+                            accessible={true}
+                            allowFontScaling={true}
+                            disabled={undefined}
+                            ellipsizeMode="tail"
+                            style={
+                              Array [
+                                Object {
+                                  "color": "#007AFF",
+                                  "fontSize": 18,
+                                  "padding": 8,
+                                  "textAlign": "center",
+                                },
+                                Object {
+                                  "color": "#841584",
+                                },
+                              ]
+                            }
+                          >
+                            삭제(통제해제)
+                          </Text>
+                        </View>
+                      </View>
                     </View>
                   </View>
                 </View>
@@ -426,7 +516,7 @@ exports[`App snapshot renders the root without loading screen 1`] = `
       </View>
       <View
         accessibilityComponentType={undefined}
-        accessibilityLabel="Links"
+        accessibilityLabel="통장생성"
         accessibilityTraits={undefined}
         accessible={true}
         hitSlop={undefined}
@@ -564,7 +654,7 @@ exports[`App snapshot renders the root without loading screen 1`] = `
             }
           }
         >
-          Links
+          통장생성
         </Text>
       </View>
       <View
