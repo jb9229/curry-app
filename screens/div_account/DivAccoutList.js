@@ -1,11 +1,41 @@
 // @flow
 import React from 'react';
 import {
-  Alert, AsyncStorage, FlatList, Text, View,
+  Alert, AsyncStorage, FlatList, Modal, TextInput, TouchableHighlight, Text, StyleSheet, View,
 } from 'react-native';
-import moment from 'moment';
 
-import { bankOpenApiUrl_accountbalance, serverApiUrl_divAccounts } from '../../constants/Network';
+import AccountCard from '../../components/AccountCard';
+import { serverApiUrl_divAccounts } from '../../constants/Network';
+import { validate } from '../../utils/validation';
+
+const styles = StyleSheet.create({
+  accountList: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#FAFAFA',
+  },
+  addDivaccButton: {
+    width: 50,
+  },
+  addDivAccModalContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  addDivAccModalWrap: {
+    backgroundColor: '#FFF',
+    padding: 20,
+  },
+  addDivAccModButWrap: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  errorMessage: {
+    color: 'red',
+  },
+});
 
 type Props = {
   accountDescript: string,
@@ -13,20 +43,25 @@ type Props = {
 };
 
 type State = {
-  isEmptyDivAccount?: boolean,
-  divAccounts: Array,
   inquiryToken: string,
+  modalVisible: boolean,
+  addDivAccDescription: string,
+  addDivAccBalance: string,
 };
 
 export default class DivAccountList extends React.Component<Props, State> {
   state = {
-    isEmptyDivAccount: undefined,
-    divAccounts: [],
     inquiryToken: 'Bearer 5a965cd7-0ec3-4312-a7aa-dc8da4838e18',
+    modalVisible: false,
+    addDivAccDescription: null,
+    addDivAccBalance: null,
+    divAccDescError: null,
+    divAccDescErrorMessage: null,
+    divAccBalError: null,
+    divAccBalErrorMessage: null,
   };
 
   componentDidMount() {
-    this.requestBankAccounBalance();
   }
 
   async setInquiryToken() {
@@ -48,98 +83,54 @@ export default class DivAccountList extends React.Component<Props, State> {
     }
   }
 
-  addDefaultDivAccount(responseJson) {
-    const rspCode = responseJson.rsp_code;
-    // if (rspCode === 'A0000') {
-    const newAccount = {
-      description: '한달 용돈',
-      // balance: responseJson.balance_amt,
-      // date: responseJson.bank_tran_date,
-      // bank: responseJson.bank_code_tran,
-      balance: 2980000,
-      date: '20181107',
-      bank: '098',
-    };
-
+  openAddDivAccModal = () => {
     this.setState({
       ...this.state,
-      isEmptyDivAccount: false,
-      divAccounts: [newAccount],
+      modalVisible: true,
     });
+  };
 
-    this.requestDivAccountBalance(3);
-    // }
+  setModalVisible(visible) {
+    this.setState({ ...this.state, modalVisible: visible });
   }
 
-  addDivAccount(newDivAccounts) {
-    const calBalanceDivAccounts = this.calDefaultDivAccountBalance(newDivAccounts);
-    
-    this.setState({
-      divAccounts: [...calBalanceDivAccounts, ...newDivAccounts],
-    });
-  }
-
-  calDefaultDivAccountBalance(newDivAccounts) {
-    const { divAccounts } = this.state;
-
-    for(var item in newDivAccounts) {
-      let defaultDivAccounts  = divAccounts[0];
-
-      defaultDivAccounts.balance  = defaultDivAccounts.balance - newDivAccounts[item].balance;
+  isValidSubmitInfo = () => {
+    let v = validate('text', this.state.addDivAccDescription, true);
+    if(!v[0])
+    {
+      console.log('invalid addDivAccDescription');
+      this.setState({divAccDescErrorMessage: v[1]});
+      return false;
     }
 
-    return divAccounts;
+    v = validate('text', this.state.addDivAccBalance, true);
+    if (!v[0])
+    {
+      console.log('invalid addDivAccBalance');
+      this.setState({divAccBalErrorMessage: v[1]});
+      return false;
+    }
+
+    return true;
   }
 
-  requestDivAccountBalance(oriAccountId) {
-    return fetch(`${serverApiUrl_divAccounts}${oriAccountId}`)
-      .then(response => response.json())
-      .then((responseJson) => {
-        this.addDivAccount(responseJson);
-      })
-      .catch((error) => {
-        Alert.alert('handleLoadingError', error.message);
-        return error;
-      });
-  }
+  addDivAccount = () => {
+    if (!this.isValidSubmitInfo()){ return; }
 
-  requestBankAccounBalance() {
-    const { fintech_use_num, accountDescript } = this.props;
-    const { inquiryToken } = this.state;
-    const paramData = {
-      fintech_use_num,
-      tran_dtime: moment().format('YYYYMMDDHHmmss'),
-    };
+    const {addDivAccDescription, addDivAccBalance} = this.state;
 
-    return fetch(
-      `${bankOpenApiUrl_accountbalance}?fintech_use_num=${encodeURIComponent(
-        paramData.fintech_use_num,
-      )}&tran_dtime=${encodeURIComponent(paramData.tran_dtime)}`,
-      {
-        headers: {
-          Accept: 'application/json',
-          'Content-Type': 'application/json; charset=UTF-8',
-          Authorization: inquiryToken,
-        },
-      },
-    )
-      .then(response => response.json())
-      .then((responseJson) => {
-        this.addDefaultDivAccount(responseJson);
-
-        return responseJson;
-      })
-      .catch((error) => {
-        Alert.alert('handleLoadingError', error.message);
-        return error;
-      });
+    this.props.requestAddDivAccount(addDivAccDescription, addDivAccBalance);
+    
+    this.setModalVisible(false);
   }
 
   render() {
-    const { divAccounts, isEmptyDivAccount } = this.state;
+    const { modalVisible } = this.state;
+    const { isEmptyDivAccount } = this.props;
 
+    const { divAccounts } = this.props;
     return (
-      <View>
+      <View style={styles.accountList}>
         {isEmptyDivAccount === undefined && (
           <View>
             <Text>쪼갠 통장 로딩 중....</Text>
@@ -148,13 +139,74 @@ export default class DivAccountList extends React.Component<Props, State> {
 
         {isEmptyDivAccount !== undefined
           && !isEmptyDivAccount && (
-            <FlatList
-              data={divAccounts}
-              keyExtractor={(item, index) => index.toString()}
-              renderItem={({ item }) => (
-                <Text>{item.description}:{item.balance}</Text>
-              )}
-            />
+            <View>
+              <FlatList
+                data={divAccounts}
+                keyExtractor={(item, index) => index.toString()}
+                renderItem={({ item }) => (
+                  <AccountCard balance={item.balance} title={item.description} />
+                )}
+              />
+
+              <View style={{ marginTop: 22 }}>
+                <Modal
+                  animationType="slide"
+                  transparent
+                  visible={modalVisible}
+                  onRequestClose={() => {
+                    Alert.alert('Modal has been closed.');
+                  }}
+                >
+                  <View style={styles.addDivAccModalContainer}>
+                    <View style={styles.addDivAccModalWrap}>
+                      <Text>통장 설명: </Text>
+                      <TextInput placeholder="통장 설명" 
+                        onChangeText={(text) => {
+                          this.setState({...this.state, addDivAccDescription: text});
+                          let v = validate('text', text, true);
+                          this.setState({divAccDescErrorMessage: v[1]});
+                        }}
+                      />
+                      <Text style={styles.errorMessage}>{this.state.divAccDescErrorMessage}</Text>
+                      <Text>초기 금액: </Text>
+                      <TextInput placeholder="최대 가능 금액: " 
+                        onChangeText={(text) => {
+                          this.setState({...this.state, addDivAccBalance: text});
+                          let v = validate('text', text, true);
+                          this.setState({divAccDescErrorMessage: v[1]});
+                        }}
+                      />
+                      <Text style={styles.errorMessage}>{this.state.divAccBalErrorMessage}</Text>
+
+                      <View style={styles.addDivAccModButWrap}>
+                        <TouchableHighlight
+                          onPress={() => {
+                            this.addDivAccount();
+                          }}
+                        >
+                          <Text>생성</Text>
+                        </TouchableHighlight>
+                        <TouchableHighlight
+                          onPress={() => {
+                            this.setModalVisible(!modalVisible);
+                          }}
+                        >
+                          <Text>취소</Text>
+                        </TouchableHighlight>
+                      </View>
+                    </View>
+                  </View>
+                </Modal>
+
+                <TouchableHighlight
+                  onPress={() => {
+                    this.openAddDivAccModal();
+                  }}
+                >
+                  <Text>통장 나누기 추가</Text>
+                </TouchableHighlight>
+              </View>
+            </View>
         )}
       </View>
     );

@@ -1,21 +1,52 @@
 // @flow
 import React from 'react';
 import {
-  Alert, Button, Picker, ScrollView, StyleSheet, Text, View,
+  Alert,
+  Button,
+  Image,
+  Picker,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
 } from 'react-native';
 
 import DivAccountList from './div_account/DivAccoutList';
-import { serverApiUrl_oriAccounts } from '../constants/Network';
+import { serverApiUrl_oriAccounts, bankOpenApiUrl_accountbalance, serverApiUrl_divAccounts } from '../constants/Network';
+import moment from 'moment';
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#fff',
   },
-  accountPicker: {
+  headerWrap: {
     flex: 1,
+    flexDirection: 'row',
+    marginTop: 20,
+    marginLeft: 5,
+    marginRight: 5,
+  },
+  iconImage: {
+    width: 62,
+    height: 62,
+  },
+  accountListWrap: {
+    flex: 1,
+    flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  divAccountListWrap: {
+    flex: 5,
+  },
+  accountPicker: {
+    width: 190,
+    height: 50,
+  },
+  accCtlButton: {},
+  accCtlButtonView: {
+    marginRight: 10,
   },
   emptyAccount: {
     flex: 1,
@@ -30,7 +61,9 @@ const styles = StyleSheet.create({
 type Props = {};
 
 type State = {
-  isEmptyAccount?: boolean,
+  divAccounts: Array,
+  isAccLoaded?: boolean,
+  isEmptyDivAccount: boolean,
   fintechUseNum: string,
 };
 
@@ -40,31 +73,41 @@ export default class HomeScreen extends React.Component<Props, State> {
   };
 
   state = {
-    isEmptyAccount: undefined,
+    isAccLoaded: undefined,
+    isEmptyDivAccount: undefined,
+    selAccount: null,
     accounts: [],
+    divAccounts: [],
     accountDescript: null,
     fintechUseNum: null,
   };
 
   componentDidMount() {
-    this.requestAccounts(1);
+    let userId  = 1;
+
+    this.requestAccounts(userId);
+  }
+
+  changeAccount = (account, itemIndex) => {
+    console.log("changeAccount:"+account.fintechUseNum);
+    this.setState({
+      isEmptyDivAccount: undefined,
+      selAccount: account,
+    });
+    this.requestBankAccounBalance(account);
   }
 
   requestAccounts = (userId) => {
-    this.setState({
-      isEmptyAccount: false,
-      accounts: [],
-      accountDescript: '월 용돈',
-      fintechUseNum: '101600000169321934052424',
-      accountId: null,
-    });
+    // this.setState({
+    //   accounts: [],
+    // });
 
     return fetch(`${serverApiUrl_oriAccounts}${userId}`)
       .then(response => response.json())
       .then((responseJson) => {
         console.log(responseJson);
         this.setState({
-          ...this.state,
+          isAccLoaded: true,
           accounts: responseJson,
         });
       })
@@ -80,49 +123,170 @@ export default class HomeScreen extends React.Component<Props, State> {
 
   deleteAccount = () => {};
 
-  render() {
-    const {
-      isEmptyAccount, accounts, fintechUseNum, accountDescript, accountId,
-    } = this.state;
-
-    const accountItems = this.state.accounts.map( (s, i) => {
-      return <Picker.Item key={i} value={s.description} label={s.description} />
+  requestDivAccountBalance(oriAccountId) {
+    return fetch(`${serverApiUrl_divAccounts}${oriAccountId}`)
+      .then(response => response.json())
+      .then((responseJson) => {
+        console.log(responseJson);
+        this.addDivAccount(responseJson);
+      })
+      .catch((error) => {
+        Alert.alert('handleLoadingError', error.message);
+        return error;
       });
+  }
+  
+  addDivAccount(newDivAccounts) {
+    const calBalanceDivAccounts = this.calDefaultDivAccountBalance(newDivAccounts);
+    
+    this.setState({
+      divAccounts: [...calBalanceDivAccounts, ...newDivAccounts],
+    });
+  }
+
+  calDefaultDivAccountBalance(newDivAccounts) {
+    const { divAccounts } = this.state;
+
+    for(var item in newDivAccounts) {
+      let defaultDivAccounts  = divAccounts[0];
+      defaultDivAccounts.balance  = defaultDivAccounts.balance - newDivAccounts[item].balance;
+    }
+
+    return divAccounts;
+  }
+
+  requestBankAccounBalance(account) {
+    const { inquiryToken } = this.state;
+    const paramData = {
+      fintech_use_num: account.fintech_use_num,
+      tran_dtime: moment().format('YYYYMMDDHHmmss'),
+    };
+
+    return fetch(
+      `${bankOpenApiUrl_accountbalance}?fintech_use_num=${encodeURIComponent(
+        paramData.fintech_use_num,
+      )}&tran_dtime=${encodeURIComponent(paramData.tran_dtime)}`,
+      {
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json; charset=UTF-8',
+          Authorization: inquiryToken,
+        },
+      },
+    )
+      .then(response => response.json())
+      .then((responseJson) => {
+        this.addDefaultDivAccount(account, responseJson);
+
+        return responseJson;
+      })
+      .catch((error) => {
+        Alert.alert('handleLoadingError', error.message);
+        return error;
+      });
+  }
+
+  addDefaultDivAccount(account, responseJson) {
+    const rspCode = responseJson.rsp_code;
+    // if (rspCode === 'A0000') {
+    const newAccount = {
+      description: '한달 용돈',
+      // balance: responseJson.balance_amt,
+      // date: responseJson.bank_tran_date,
+      // bank: responseJson.bank_code_tran,
+      balance: 2980000,
+      date: '20181107',
+      bank: '098',
+    };
+
+    this.setState({
+      isEmptyDivAccount: false,
+      divAccounts: [newAccount],
+    });
+
+    this.requestDivAccountBalance(account.id);
+    // }
+  }
+
+  requestAddDivAccount = async (addDivAccDescription, addDivAccBalance) => {
+    const { selAccount } = this.state;
+
+    await fetch(`${serverApiUrl_divAccounts}`, {
+        method: 'POST',
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          oriAccountId: selAccount.id,
+          description: addDivAccDescription,
+          balance: addDivAccBalance,
+        }),
+      })
+      .then(response => response.json())
+      .then((responseJson) => {
+        this.addDivAccount(responseJson);
+      })
+      .catch((error) => {
+        Alert.alert('handleLoadingError', error.message);
+        return error;
+      });
+  };
+
+  render() {
+    const { divAccounts, isAccLoaded, isEmptyDivAccount, accounts, fintechUseNum, accountDescript, selAccount } = this.state;
+
+    const accountItems = this.state.accounts.map((s, i) => (
+      <Picker.Item key={i} value={s} label={s.description} />
+    ));
 
     return (
       <View style={styles.container}>
-        <View style={styles.accountPicker}>
+        <View style={styles.headerWrap}>
+          <Image style={styles.iconImage} source={require('../assets/images/curry-icon.png')} />
+          <Text>brand / notice</Text>
+        </View>
+        <View style={styles.accountListWrap}>
           <Picker
-            style={{ height: 50, width: 200 }}
-            onValueChange={(itemValue, itemIndex) => this.setState({ accountId: itemValue })}
+            selectedValue={selAccount}
+            style={styles.accountPicker}
+            onValueChange={(itemValue, itemIndex) => this.changeAccount(itemValue, itemIndex)}
           >
             {accountItems}
           </Picker>
-        </View>
-        <View>
-          <Button
-            onPress={this.addAccount}
-            title="추가"
-            color="#841584"
-            accessibilityLabel="Add Account"
-          />
-          <Button
-            onPress={this.deleteAccount}
-            title="삭제(통제해제)"
-            color="#841584"
-            accessibilityLabel="Delete Account"
-          />
-        </View>
-        {isEmptyAccount && (
-          <View style={styles.emptyAccount}>
-            <Text>Add Account</Text>
+
+          <View style={styles.accCtlButtonView}>
+            <Button
+              onPress={this.addAccount}
+              title="추가"
+              color="#841584"
+              accessibilityLabel="Add Account"
+              style={styles.accCtlButton}
+            />
           </View>
-        )}
-        {!isEmptyAccount && (
-          <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
-            <DivAccountList accountDescript={accountDescript} fintech_use_num={fintechUseNum} />
-          </ScrollView>
-        )}
+          <View style={styles.accCtlButtonView}>
+            <Button
+              onPress={this.deleteAccount}
+              title="삭제"
+              color="#841584"
+              accessibilityLabel="Delete Account"
+              style={styles.accCtlButton}
+            />
+          </View>
+        </View>
+
+        <View style={styles.divAccountListWrap}>
+          {!isAccLoaded && (
+            <View style={styles.emptyAccount}>
+              <Text>Add Account</Text>
+            </View>
+          )}
+          {isAccLoaded && (
+            <ScrollView contentContainerStyle={styles.contentContainer}>
+              <DivAccountList account={selAccount} divAccounts={divAccounts} isEmptyDivAccount={isEmptyDivAccount} requestAddDivAccount={this.requestAddDivAccount}/>
+            </ScrollView>
+          )}
+        </View>
       </View>
     );
   }
