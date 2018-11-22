@@ -10,10 +10,10 @@ import {
   Text,
   View,
 } from 'react-native';
+import moment from 'moment';
 
 import DivAccountList from './div_account/DivAccoutList';
-import { serverApiUrl_oriAccounts, bankOpenApiUrl_accountbalance, serverApiUrl_divAccounts } from '../constants/Network';
-import moment from 'moment';
+import { CURRYSERVER_ORIACCOUNTS, OPENBANKSERVER_ACCOUNT_BALANCE, CURRYSERVER_DIVACCOUNTS } from '../constants/Network';
 
 const styles = StyleSheet.create({
   container: {
@@ -63,7 +63,8 @@ type Props = {};
 type State = {
   divAccounts: Array,
   isAccLoaded?: boolean,
-  isEmptyDivAccount: boolean,
+  isEmptyDivAccount?: boolean,
+  selOriAccount: any,
   fintechUseNum: string,
 };
 
@@ -73,39 +74,59 @@ export default class HomeScreen extends React.Component<Props, State> {
   };
 
   state = {
+    defaultAccountBalance: undefined,
     isAccLoaded: undefined,
     isEmptyDivAccount: undefined,
-    selAccount: null,
+    selOriAccount: null,
     accounts: [],
     divAccounts: [],
     accountDescript: null,
-    fintechUseNum: null,
+    fintechUseNum: '',
   };
 
   componentDidMount() {
-    let userId  = 1;
+    const userId = 1; // it will receiv from redux after
 
-    this.requestAccounts(userId);
+    this.reqOriAccounts(userId);
   }
 
-  changeAccount = (account, itemIndex) => {
-    console.log("changeAccount:"+account.fintechUseNum);
+  /**
+   * 원통장 변경
+   * @param account 변경 될 원통장
+   * @returns 
+   */
+  changeOriAccount = (account) => {
+    // validation
+    if (account == null) { return; }
+
     this.setState({
       isEmptyDivAccount: undefined,
-      selAccount: account,
+      selOriAccount: account,
     });
-    this.requestBankAccounBalance(account);
+
+    this.reqOriAccBalance();
   }
 
-  requestAccounts = (userId) => {
-    // this.setState({
-    //   accounts: [],
-    // });
+  /**
+   * 원통장 삭제
+   */
+  delOriAccount = () => {};
 
-    return fetch(`${serverApiUrl_oriAccounts}${userId}`)
+  /**
+   * 원통장 추가 폼 요청(원통장이 없을 때, 원통장 추가 버튼 클릭 시)
+   */
+  reqOriAccForm = () => {
+    this.props.navigation.navigate('Links');
+  };
+
+  /**
+   * 원통장 리스트 요청
+   * @param userId 사용자 아이디
+   */
+  reqOriAccounts = (userId) => {
+    return fetch(`${CURRYSERVER_ORIACCOUNTS}${userId}`)
       .then(response => response.json())
       .then((responseJson) => {
-        console.log(responseJson);
         this.setState({
           isAccLoaded: true,
           accounts: responseJson,
@@ -117,53 +138,18 @@ export default class HomeScreen extends React.Component<Props, State> {
       });
   };
 
-  addAccount = () => {
-    this.props.navigation.navigate('Links');
-  };
-
-  deleteAccount = () => {};
-
-  requestDivAccountBalance(oriAccountId) {
-    return fetch(`${serverApiUrl_divAccounts}${oriAccountId}`)
-      .then(response => response.json())
-      .then((responseJson) => {
-        console.log(responseJson);
-        this.addDivAccount(responseJson);
-      })
-      .catch((error) => {
-        Alert.alert('handleLoadingError', error.message);
-        return error;
-      });
-  }
-  
-  addDivAccount(newDivAccounts) {
-    const calBalanceDivAccounts = this.calDefaultDivAccountBalance(newDivAccounts);
-    
-    this.setState({
-      divAccounts: [...calBalanceDivAccounts, ...newDivAccounts],
-    });
-  }
-
-  calDefaultDivAccountBalance(newDivAccounts) {
-    const { divAccounts } = this.state;
-
-    for(var item in newDivAccounts) {
-      let defaultDivAccounts  = divAccounts[0];
-      defaultDivAccounts.balance  = defaultDivAccounts.balance - newDivAccounts[item].balance;
-    }
-
-    return divAccounts;
-  }
-
-  requestBankAccounBalance(account) {
-    const { inquiryToken } = this.state;
+  /**
+   * 
+   */
+  reqOriAccBalance = () => {
+    const { selOriAccount, inquiryToken } = this.state;
     const paramData = {
-      fintech_use_num: account.fintech_use_num,
+      fintech_use_num: selOriAccount.fintech_use_num,
       tran_dtime: moment().format('YYYYMMDDHHmmss'),
     };
 
     return fetch(
-      `${bankOpenApiUrl_accountbalance}?fintech_use_num=${encodeURIComponent(
+      `${OPENBANKSERVER_ACCOUNT_BALANCE}?fintech_use_num=${encodeURIComponent(
         paramData.fintech_use_num,
       )}&tran_dtime=${encodeURIComponent(paramData.tran_dtime)}`,
       {
@@ -176,7 +162,7 @@ export default class HomeScreen extends React.Component<Props, State> {
     )
       .then(response => response.json())
       .then((responseJson) => {
-        this.addDefaultDivAccount(account, responseJson);
+        this.addDefaultDivAccount(selOriAccount, responseJson);
 
         return responseJson;
       })
@@ -186,10 +172,55 @@ export default class HomeScreen extends React.Component<Props, State> {
       });
   }
 
-  addDefaultDivAccount(account, responseJson) {
+  requestDivAccountBalance = (oriAccountId) => {
+    return fetch(`${CURRYSERVER_DIVACCOUNTS}${oriAccountId}`)
+      .then(response => response.json())
+      .then((responseJson) => {
+        console.log(responseJson);
+        this.addDivAccount(responseJson);
+        return responseJson;
+      })
+      .catch((error) => {
+        Alert.alert('handleLoadingError', error.message);
+        return error;
+      });
+  }
+
+  refreshDivAccList = (refreshAccount) => {
+    this.requestBankAccounBalance(refreshAccount);
+  }
+
+  addDivAccount = (newDivAccounts) => {
+    const calBalanceDivAccounts = this.calDefaultDivAccountBalance(newDivAccounts);
+
+    this.setState({
+      divAccounts: [...calBalanceDivAccounts, ...newDivAccounts],
+    });
+  }
+
+  calDefaultDivAccountBalance = (newDivAccounts) => {
+    const { divAccounts, defaultAccountBalance } = this.state;
+
+    let currDefaultAccBalance = defaultAccountBalance;
+    for(var item in newDivAccounts) 
+    {
+      console.log(newDivAccounts[item]);
+      let defaultDivAccounts      = divAccounts[0];
+      defaultDivAccounts.balance  = defaultDivAccounts.balance - newDivAccounts[item].balance;
+
+      currDefaultAccBalance       = defaultDivAccounts.balance;
+    }
+
+    this.setState({defaultAccountBalance: currDefaultAccBalance});
+
+    return divAccounts;
+  }
+
+  addDefaultDivAccount = (account, responseJson) => {
     const rspCode = responseJson.rsp_code;
     // if (rspCode === 'A0000') {
     const newAccount = {
+      isDefault: true,
       description: '한달 용돈',
       // balance: responseJson.balance_amt,
       // date: responseJson.bank_tran_date,
@@ -209,16 +240,16 @@ export default class HomeScreen extends React.Component<Props, State> {
   }
 
   requestAddDivAccount = async (addDivAccDescription, addDivAccBalance) => {
-    const { selAccount } = this.state;
+    const { selOriAccount } = this.state;
 
-    await fetch(`${serverApiUrl_divAccounts}`, {
+    await fetch(`${CURRYSERVER_DIVACCOUNTS}`, {
         method: 'POST',
         headers: {
           Accept: 'application/json',
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          oriAccountId: selAccount.id,
+          oriAccountId: selOriAccount.id,
           description: addDivAccDescription,
           balance: addDivAccBalance,
         }),
@@ -234,7 +265,7 @@ export default class HomeScreen extends React.Component<Props, State> {
   };
 
   render() {
-    const { divAccounts, isAccLoaded, isEmptyDivAccount, accounts, fintechUseNum, accountDescript, selAccount } = this.state;
+    const { divAccounts, isAccLoaded, isEmptyDivAccount, accounts, fintechUseNum, accountDescript, selOriAccount, defaultAccountBalance } = this.state;
 
     const accountItems = this.state.accounts.map((s, i) => (
       <Picker.Item key={i} value={s} label={s.description} />
@@ -248,16 +279,17 @@ export default class HomeScreen extends React.Component<Props, State> {
         </View>
         <View style={styles.accountListWrap}>
           <Picker
-            selectedValue={selAccount}
+            selectedValue={selOriAccount}
             style={styles.accountPicker}
-            onValueChange={(itemValue, itemIndex) => this.changeAccount(itemValue, itemIndex)}
+            onValueChange={(itemValue, itemIndex) => this.changeOriAccount(itemValue, itemIndex)}
           >
             {accountItems}
           </Picker>
 
+
           <View style={styles.accCtlButtonView}>
             <Button
-              onPress={this.addAccount}
+              onPress={this.reqOriAccForm}
               title="추가"
               color="#841584"
               accessibilityLabel="Add Account"
@@ -266,7 +298,7 @@ export default class HomeScreen extends React.Component<Props, State> {
           </View>
           <View style={styles.accCtlButtonView}>
             <Button
-              onPress={this.deleteAccount}
+              onPress={this.delOriAccount}
               title="삭제"
               color="#841584"
               accessibilityLabel="Delete Account"
@@ -283,7 +315,8 @@ export default class HomeScreen extends React.Component<Props, State> {
           )}
           {isAccLoaded && (
             <ScrollView contentContainerStyle={styles.contentContainer}>
-              <DivAccountList account={selAccount} divAccounts={divAccounts} isEmptyDivAccount={isEmptyDivAccount} requestAddDivAccount={this.requestAddDivAccount}/>
+              <DivAccountList account={selOriAccount} divAccounts={divAccounts} isEmptyDivAccount={isEmptyDivAccount} 
+                requestAddDivAccount={this.requestAddDivAccount} refreshDivAccList={this.refreshDivAccList} defaultAccountBalance={defaultAccountBalance} />
             </ScrollView>
           )}
         </View>

@@ -1,12 +1,21 @@
 // @flow
 import React from 'react';
 import {
-  Alert, AsyncStorage, FlatList, Modal, TextInput, TouchableHighlight, Text, StyleSheet, View,
+  Alert,
+  AsyncStorage,
+  FlatList,
+  Modal,
+  TextInput,
+  TouchableHighlight,
+  Text,
+  StyleSheet,
+  View,
 } from 'react-native';
 
 import AccountCard from '../../components/AccountCard';
 import { serverApiUrl_divAccounts } from '../../constants/Network';
-import { validate } from '../../utils/validation';
+import { validate, validatePresence } from '../../utils/validation';
+import { handleResponse } from '../../utils/network-common';
 
 const styles = StyleSheet.create({
   accountList: {
@@ -61,9 +70,26 @@ export default class DivAccountList extends React.Component<Props, State> {
     divAccBalErrorMessage: null,
   };
 
-  componentDidMount() {
-  }
+  componentDidMount() {}
 
+  /*
+   * Divide Account 추가
+   */
+  addDivAccount = () => {
+    if (!this.isValidSubmitInfo()) {
+      return;
+    }
+
+    const { addDivAccDescription, addDivAccBalance } = this.state;
+
+    this.props.requestAddDivAccount(addDivAccDescription, addDivAccBalance);
+
+    this.setModalVisible(false);
+  };
+
+  /*
+   * ??
+   */
   async setInquiryToken() {
     try {
       const inquiryToken = await AsyncStorage.getItem(PERSISTKEY_OPENBANKINQUIRY);
@@ -83,9 +109,11 @@ export default class DivAccountList extends React.Component<Props, State> {
     }
   }
 
+  /*
+   * Open Add Divide Account Modal
+   */
   openAddDivAccModal = () => {
     this.setState({
-      ...this.state,
       modalVisible: true,
     });
   };
@@ -95,34 +123,48 @@ export default class DivAccountList extends React.Component<Props, State> {
   }
 
   isValidSubmitInfo = () => {
-    let v = validate('text', this.state.addDivAccDescription, true);
-    if(!v[0])
-    {
+    let v = validate('textMax', this.state.addDivAccDescription, true, 10);
+    if (!v[0]) {
       console.log('invalid addDivAccDescription');
-      this.setState({divAccDescErrorMessage: v[1]});
+      this.setState({ divAccDescErrorMessage: v[1] });
       return false;
     }
 
-    v = validate('text', this.state.addDivAccBalance, true);
-    if (!v[0])
-    {
+    v = validate('decimalMax', this.state.addDivAccBalance, true, this.props.defaultAccountBalance);
+    if (!v[0]) {
       console.log('invalid addDivAccBalance');
-      this.setState({divAccBalErrorMessage: v[1]});
+      this.setState({ divAccBalErrorMessage: v[1] });
       return false;
     }
 
     return true;
-  }
+  };
 
-  addDivAccount = () => {
-    if (!this.isValidSubmitInfo()){ return; }
+  /**
+   * 나누기 통장 삭제
+   *  1. 나누기 통장 서버 Data 삭제
+   *  2. 나누기 통장 Refresh
+   *
+   * @param divAccId: 나누기 통장 Server Data Id
+   * @returns null
+   */
+  deleteDivAccount = (id) => {
+    console.log(`delete will be ${id}`);
 
-    const {addDivAccDescription, addDivAccBalance} = this.state;
+    fetch(`${serverApiUrl_divAccounts}${id}`, {
+      method: 'DELETE',
+      headers: {
+        Accept: 'application/json',
+      },
+    })
+      .then(response => handleResponse(response))
+      .then((responseJson) => {
+        this.props.refreshDivAccList(this.props.account);
+      })
+      .catch(err => console.error(err));
 
-    this.props.requestAddDivAccount(addDivAccDescription, addDivAccBalance);
-    
-    this.setModalVisible(false);
-  }
+    console.log(`delete request complete ${id}`);
+  };
 
   render() {
     const { modalVisible } = this.state;
@@ -144,7 +186,13 @@ export default class DivAccountList extends React.Component<Props, State> {
                 data={divAccounts}
                 keyExtractor={(item, index) => index.toString()}
                 renderItem={({ item }) => (
-                  <AccountCard balance={item.balance} title={item.description} />
+                  <AccountCard
+                    isDefault={item.isDefault}
+                    balance={item.balance}
+                    title={item.description}
+                    accId={item.id}
+                    deleteAccount={this.deleteDivAccount}
+                  />
                 )}
               />
 
@@ -160,20 +208,23 @@ export default class DivAccountList extends React.Component<Props, State> {
                   <View style={styles.addDivAccModalContainer}>
                     <View style={styles.addDivAccModalWrap}>
                       <Text>통장 설명: </Text>
-                      <TextInput placeholder="통장 설명" 
+                      <TextInput
+                        placeholder="통장 설명"
                         onChangeText={(text) => {
-                          this.setState({...this.state, addDivAccDescription: text});
-                          let v = validate('text', text, true);
-                          this.setState({divAccDescErrorMessage: v[1]});
+                          this.setState({ ...this.state, addDivAccDescription: text });
+                          const v = validate('text', text, true);
+                          this.setState({ divAccDescErrorMessage: v[1] });
                         }}
                       />
                       <Text style={styles.errorMessage}>{this.state.divAccDescErrorMessage}</Text>
                       <Text>초기 금액: </Text>
-                      <TextInput placeholder="최대 가능 금액: " 
+                      <TextInput
+                        placeholder="최대 가능 금액: "
+                        keyboardType="numeric"
                         onChangeText={(text) => {
-                          this.setState({...this.state, addDivAccBalance: text});
-                          let v = validate('text', text, true);
-                          this.setState({divAccDescErrorMessage: v[1]});
+                          this.setState({ ...this.state, addDivAccBalance: text });
+                          const v = validate('text', text, true);
+                          this.setState({ divAccDescErrorMessage: v[1] });
                         }}
                       />
                       <Text style={styles.errorMessage}>{this.state.divAccBalErrorMessage}</Text>
