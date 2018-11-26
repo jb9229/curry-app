@@ -2,7 +2,7 @@ import React from 'react';
 import { createSwitchNavigator } from 'react-navigation';
 
 import MainTabNavigator from './MainTabNavigator';
-import BankAPIAuthWebView from '../screens/auth/BankAPIAuthWebView';
+import BankAPIAuthWebView from '../components/organisms/auth/BankAPIAuthWebView';
 
 export default createSwitchNavigator(
   {

@@ -3,7 +3,7 @@ import {
   Button, Text, View, WebView,
 } from 'react-native';
 
-import { bankOpenApiUrl_oauthAuthorize2 } from '../../constants/Network';
+import { bankOpenApiUrl_oauthAuthorize2 } from '../../../constants/Network';
 
 export default class BankAPIAuthWebView extends React.Component {
   receiveWebViewMSG = (webViewData) => {
