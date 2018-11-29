@@ -1,20 +1,11 @@
+// @flow
 import React from 'react';
 import {
-  Alert,
-  AsyncStorage,
-  FlatList,
-  Modal,
-  ScrollView,
-  TextInput,
-  TouchableHighlight,
-  Text,
-  StyleSheet,
-  View,
+  FlatList, ScrollView, TouchableHighlight, Text, StyleSheet, View,
 } from 'react-native';
 
 import AccountCard from './AccountCard';
 import DivAccFormModal from './DivAccFormModal';
-import { CURRYSERVER_DIVACCOUNTS } from '../../constants/Network';
 
 const styles = StyleSheet.create({
   divAccountListWrap: {
@@ -34,12 +25,22 @@ const styles = StyleSheet.create({
   },
 });
 
-export default class DivAccListOrganism extends React.Component {
-  constructor(props) {
+type Props = {
+  divAccounts: Function,
+  createDivAcc: Function,
+  deleteDivAcc: Function,
+};
+
+type States = {
+  isVisibleDivAccFormModal: boolean,
+};
+
+export default class DivAccListOrganism extends React.Component<Props, States> {
+  constructor(props: any) {
     super(props);
 
     this.state = {
-      isVisibleOriAccForm: false,
+      isVisibleDivAccFormModal: false,
     };
   }
 
@@ -50,92 +51,65 @@ export default class DivAccListOrganism extends React.Component {
    */
   openAddDivAccModal = () => {
     this.setState({
-      isVisibleOriAccForm: true,
+      isVisibleDivAccFormModal: true,
     });
   };
 
-  setOriAccFormModalVisible = (visible) => {
-    this.setState({ isVisibleOriAccForm: visible });
+  setVisibleDivAccFormModal = (visible: boolean) => {
+    this.setState({ isVisibleDivAccFormModal: visible });
   };
 
-  creaDivAccount = (addDivAccDescription, addDivAccBalance) => {
-    this.requestCreaDivAccount(addDivAccDescription, addDivAccBalance);
+  createDivAcc = (addDivAccDescription: string, addDivAccBalance: number) => {
+    const { createDivAcc } = this.props;
 
-    this.setOriAccFormModalVisible(false);
-  };
+    createDivAcc(addDivAccDescription, addDivAccBalance);
 
-  requestCreaDivAccount = async (addDivAccDescription, addDivAccBalance) => {
-    const { oriAccount } = this.props;
-
-    await fetch(`${CURRYSERVER_DIVACCOUNTS}`, {
-      method: 'POST',
-      headers: {
-        Accept: 'application/json',
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        oriAccountId: oriAccount.id,
-        description: addDivAccDescription,
-        balance: addDivAccBalance,
-      }),
-    })
-      .then(response => response.json())
-      .then((responseJson) => {
-        this.props.addDivAccount(responseJson);
-      })
-      .catch((error) => {
-        Alert.alert('handleLoadingError', error.message);
-        return error;
-      });
+    this.setVisibleDivAccFormModal(false);
   };
 
   render() {
-    const { divAccounts, isEmptyDivAcc } = this.props;
-    const { isVisibleOriAccForm } = this.state;
+    const { divAccounts, deleteDivAcc } = this.props;
+    const { isVisibleDivAccFormModal } = this.state;
 
-    const defaultAccountBalance = divAccounts.map((divAccount, index) => {
+    let defDivAccBalance = -1;
+
+    divAccounts.forEach((divAccount) => {
       if (divAccount.isDefault) {
-        return divAccount.balance;
+        defDivAccBalance = divAccount.balance;
       }
     });
+
     return (
       <View style={styles.divAccountListWrap}>
-        {isEmptyDivAcc === undefined && (
-          <View>
-            <Text>쪼갠 통장 로딩 중....</Text>
-          </View>
-        )}
-
-        {isEmptyDivAcc !== undefined
-          && !isEmptyDivAcc && (
-            <ScrollView contentContainerStyle={styles.contentContainer}>
-              <View style={styles.accountList}>
-                <FlatList
-                  data={divAccounts}
-                  keyExtractor={(item, index) => index.toString()}
-                  renderItem={({ item }) => (
-                    <AccountCard
-                      isDefault={item.isDefault}
-                      balance={item.balance}
-                      title={item.description}
-                      accId={item.id}
-                      deleteAccount={this.deleteDivAccount}
-                    />
-                  )}
-                />
-              </View>
-              <View>
-                <TouchableHighlight onPress={this.openAddDivAccModal}>
-                  <Text>통장 나누기 추가</Text>
-                </TouchableHighlight>
-              </View>
-            </ScrollView>
+        {divAccounts.length > 0 && (
+          <ScrollView contentContainerStyle={styles.contentContainer}>
+            <View style={styles.accountList}>
+              <FlatList
+                data={divAccounts}
+                keyExtractor={(item, index) => index.toString()}
+                renderItem={({ item }) => (
+                  <AccountCard
+                    isDefault={item.isDefault}
+                    balance={item.balance}
+                    title={item.description}
+                    accId={item.id}
+                    deleteAccount={deleteDivAcc}
+                  />
+                )}
+              />
+            </View>
+            <View>
+              <TouchableHighlight onPress={this.openAddDivAccModal}>
+                <Text>통장 나누기 추가</Text>
+              </TouchableHighlight>
+            </View>
+          </ScrollView>
         )}
         <DivAccFormModal
-          isVisibleOriAccForm={isVisibleOriAccForm}
-          setOriAccFormModalVisible={this.setOriAccFormModalVisible}
-          creaDivAccount={this.creaDivAccount}
-          defaultAccountBalance={defaultAccountBalance}
+          isVisibleDivAccFormModal={isVisibleDivAccFormModal}
+          setVisibleDivAccFormModal={this.setVisibleDivAccFormModal}
+          createDivAcc={this.createDivAcc}
+          defDivAccBalance={defDivAccBalance}
         />
       </View>
     );

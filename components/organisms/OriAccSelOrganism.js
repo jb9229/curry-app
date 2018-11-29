@@ -1,3 +1,4 @@
+// @flow
 import React from 'react';
 import {
   Button, Image, Picker, StyleSheet, Text, View,
@@ -35,19 +36,26 @@ const styles = StyleSheet.create({
   },
 });
 
-export default class OriAccSelOrganism extends React.Component {
+type Props = {
+  changeOriAcc: Function,
+  navigation: Object,
+  oriAccounts: Array<Object>,
+  selOriAccount: Object,
+};
+export default class OriAccSelOrganism extends React.Component<Props> {
   /**
    * 원통장 변경
    * @param account 변경 될 원통장
    * @returns
    */
-  changeOriAccount = (account) => {
+  changeOriAcc = (account: Object) => {
+    const { changeOriAcc } = this.props;
     // validation
     if (account == null) {
       return;
     }
 
-    this.props.changeOriAccount(account);
+    changeOriAcc(account);
   };
 
   /**
@@ -66,8 +74,8 @@ export default class OriAccSelOrganism extends React.Component {
 
   render() {
     const { oriAccounts, selOriAccount } = this.props;
-    const accountItems = oriAccounts.map((s, i) => (
-      <Picker.Item key={i} value={s} label={s.description} />
+    const accountItems = oriAccounts.map(account => (
+      <Picker.Item key={account.id} value={account} label={account.description} />
     ));
 
     return (
@@ -80,7 +88,7 @@ export default class OriAccSelOrganism extends React.Component {
           <Picker
             selectedValue={selOriAccount}
             style={styles.accountPicker}
-            onValueChange={(itemValue, itemIndex) => this.changeOriAccount(itemValue, itemIndex)}
+            onValueChange={itemValue => this.changeOriAcc(itemValue)}
           >
             {accountItems}
           </Picker>

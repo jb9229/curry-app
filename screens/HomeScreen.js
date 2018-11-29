@@ -1,8 +1,10 @@
+// @flow
 import React from 'react';
 
 import BalanceListScreen from './BalanceListScreen';
 
-export default class HomeScreen extends React.Component {
+type Props = {};
+export default class HomeScreen extends React.Component<Props> {
   static navigationOptions = {
     header: null,
   };

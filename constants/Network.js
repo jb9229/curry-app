@@ -1,4 +1,5 @@
 module.exports = {
+  PERSISTKEY_OPENBANKINQUIRY: '',
   OPENBANKSERVER_ACCOUNT_BALANCE: 'https://testapi.open-platform.or.kr/account/balance',
   bankOpenApiUrl_oauthAuthorize2: 'https://testapi.open-platform.or.kr/oauth/2.0/authorize2',
   CURRYSERVER_DIVACCOUNTS: 'http://curry.ap-northeast-2.elasticbeanstalk.com/api/v1/div_account/',

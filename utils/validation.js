@@ -20,6 +20,10 @@ export const validation = {
     },
   },
   decimalMax: {
+    format: {
+      pattern: /^\d*$/,
+      message: '숫자(정수)만 입력해 주세요.',
+    },
     length: {
       maximum: {
         message: '최대값:',
@@ -31,7 +35,7 @@ export const validation = {
 export function validatePresence(value) {
   const resp = [null, null];
 
-  if (value == '' || value == null) {
+  if (value === '' || value == null) {
     resp[0] = false;
     resp[1] = '필수 항목 입니다, 빈칸을 채워 주세요.';
   } else {
@@ -44,7 +48,7 @@ export function validatePresence(value) {
 export function validate(nameField, value, essential, compareValue) {
   const resp = [null, null];
 
-  if (validation.hasOwnProperty(nameField)) {
+  if (Object.prototype.hasOwnProperty.call(validation, nameField)) {
     const v = validation[nameField];
 
     if (value === '' || value == null) {
@@ -54,24 +58,34 @@ export function validate(nameField, value, essential, compareValue) {
       } else {
         resp[0] = true;
       }
-    } else if (v.hasOwnProperty('length')) {
+    }
+
+    if (Object.prototype.hasOwnProperty.call(v, 'format') && !v.format.pattern.test(value)) {
+      resp[0] = false;
+      resp[1] = v.format.message;
+    }
+
+    if (Object.prototype.hasOwnProperty.call(v, 'length')) {
       const l = v.length;
 
       if (nameField.startsWith('decimal')) {
-        if (l.hasOwnProperty('minimum') && value < compareValue) {
+        if (Object.prototype.hasOwnProperty.call(l, 'minimum') && value < compareValue) {
           resp[0] = false;
           resp[1] = l.minimum.message + compareValue;
-        } else if (l.hasOwnProperty('maximum') && value > compareValue) {
+        } else if (Object.prototype.hasOwnProperty.call(l, 'maximum') && value > compareValue) {
           resp[0] = false;
           resp[1] = l.maximum.message + compareValue;
         } else {
           resp[0] = true;
         }
       } else if (nameField.startsWith('text')) {
-        if (l.hasOwnProperty('minimum') && value.length < compareValue) {
+        if (Object.prototype.hasOwnProperty.call(l, 'minimum') && value.length < compareValue) {
           resp[0] = false;
           resp[1] = l.minimum.message + compareValue;
-        } else if (l.hasOwnProperty('maximum') && value.length > compareValue) {
+        } else if (
+          Object.prototype.hasOwnProperty.call(l, 'maximum')
+          && value.length > compareValue
+        ) {
           resp[0] = false;
           resp[1] = l.maximum.message + compareValue;
         } else {
@@ -80,7 +94,7 @@ export function validate(nameField, value, essential, compareValue) {
       } else {
         resp[0] = true;
       }
-    } else if (v.hasOwnProperty('format') && !v.format.pattern.test(value)) {
+    } else if (Object.prototype.hasOwnProperty.call(v, 'format') && !v.format.pattern.test(value)) {
       resp[0] = false;
       resp[1] = v.format.message;
     } else {
