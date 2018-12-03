@@ -10,6 +10,11 @@ import DivAccFormModal from './DivAccFormModal';
 const styles = StyleSheet.create({
   divAccountListWrap: {
     flex: 5,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  divAccListTitleWrap: {
+    marginBottom: 10,
   },
   accountList: {
     flex: 1,
@@ -20,15 +25,14 @@ const styles = StyleSheet.create({
   errorMessage: {
     color: 'red',
   },
-  contentContainer: {
-    paddingTop: 30,
-  },
+  divAccScrollWrap: {},
 });
 
 type Props = {
-  divAccounts: Function,
-  createDivAcc: Function,
+  divAccList: Array<Object>,
   deleteDivAcc: Function,
+  createDivAcc: Function,
+  navigation: Object,
 };
 
 type States = {
@@ -46,34 +50,23 @@ export default class DivAccListOrganism extends React.Component<Props, States> {
 
   componentDidMount() {}
 
-  /*
-   * Open Add Divide Account Modal
+  /**
+   * 나누기 통장 에디터폼 Visible 설정 함수
+   * @param {boolean} visible Visible 설정 값
    */
-  openAddDivAccModal = () => {
-    this.setState({
-      isVisibleDivAccFormModal: true,
-    });
-  };
-
   setVisibleDivAccFormModal = (visible: boolean) => {
     this.setState({ isVisibleDivAccFormModal: visible });
   };
 
-  createDivAcc = (addDivAccDescription: string, addDivAccBalance: number) => {
-    const { createDivAcc } = this.props;
-
-    createDivAcc(addDivAccDescription, addDivAccBalance);
-
-    this.setVisibleDivAccFormModal(false);
-  };
-
   render() {
-    const { divAccounts, deleteDivAcc } = this.props;
+    const {
+      divAccList, deleteDivAcc, createDivAcc, navigation,
+    } = this.props;
     const { isVisibleDivAccFormModal } = this.state;
 
     let defDivAccBalance = -1;
 
-    divAccounts.forEach((divAccount) => {
+    divAccList.forEach((divAccount) => {
       if (divAccount.isDefault) {
         defDivAccBalance = divAccount.balance;
       }
@@ -81,34 +74,35 @@ export default class DivAccListOrganism extends React.Component<Props, States> {
 
     return (
       <View style={styles.divAccountListWrap}>
-        {divAccounts.length > 0 && (
-          <ScrollView contentContainerStyle={styles.contentContainer}>
+        <View style={styles.divAccListTitleWrap}>
+          <Text>나누기 통장</Text>
+        </View>
+        {divAccList.length > 0 && (
+          <ScrollView divAccScrollWrapStyle={styles.divAccScrollWrap}>
             <View style={styles.accountList}>
               <FlatList
-                data={divAccounts}
+                data={divAccList}
                 keyExtractor={(item, index) => index.toString()}
                 renderItem={({ item }) => (
                   <AccountCard
-                    isDefault={item.isDefault}
-                    balance={item.balance}
-                    title={item.description}
-                    accId={item.id}
+                    divAccount={item}
                     deleteAccount={deleteDivAcc}
+                    navigation={navigation}
                   />
                 )}
               />
             </View>
             <View>
-              <TouchableHighlight onPress={this.openAddDivAccModal}>
+              <TouchableHighlight onPress={() => this.setVisibleDivAccFormModal(true)}>
                 <Text>통장 나누기 추가</Text>
               </TouchableHighlight>
             </View>
           </ScrollView>
         )}
         <DivAccFormModal
+          createDivAcc={createDivAcc}
           isVisibleDivAccFormModal={isVisibleDivAccFormModal}
           setVisibleDivAccFormModal={this.setVisibleDivAccFormModal}
-          createDivAcc={this.createDivAcc}
           defDivAccBalance={defDivAccBalance}
         />
       </View>

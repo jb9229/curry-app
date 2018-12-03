@@ -1,3 +1,4 @@
+// @flow
 import React from 'react';
 import {
   Alert, StyleSheet, Text, TouchableHighlight, View,
@@ -27,17 +28,31 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  commandWrap: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   balanceText: {
     fontSize: 25,
   },
   deleteText: {
     color: 'red',
   },
+  commandText: {
+    color: 'blue',
+  },
   defaultText: {
     color: 'blue',
   },
 });
-export default class AccountCard extends React.Component {
+
+type Props = {
+  divAccount: Object,
+  navigation: Object,
+};
+
+export default class AccountCard extends React.Component<Props> {
   constructor() {
     super();
 
@@ -59,21 +74,21 @@ export default class AccountCard extends React.Component {
       '정말 삭제 합니까?',
       [
         { text: 'Cancel', onPress: () => console.log('Cancel Pressed'), style: 'cancel' },
-        { text: 'OK', onPress: () => this.props.deleteAccount(this.props.accId) },
+        { text: 'OK', onPress: () => this.props.deleteAccount(this.props.divAccount.accId) },
       ],
       { cancelable: false },
     );
   };
 
   render() {
-    const { title, balance, isDefault } = this.props;
-    const balanceStr = balance.format();
+    const { divAccount, navigation } = this.props;
+    const balanceStr = divAccount.balance.format();
 
     return (
       <View style={styles.cardWrap}>
         <View style={styles.header}>
-          {isDefault && <Text style={styles.defaultText}>대표</Text>}
-          {!isDefault && (
+          {divAccount.isDefault && <Text style={styles.defaultText}>대표</Text>}
+          {!divAccount.isDefault && (
             <TouchableHighlight
               onPress={() => {
                 this.deleteAccountCard();
@@ -84,10 +99,19 @@ export default class AccountCard extends React.Component {
           )}
         </View>
         <View style={styles.titleWrap}>
-          <Text style={styles.titleText}>{title}</Text>
+          <Text style={styles.titleText}>{divAccount.description}</Text>
         </View>
         <View style={styles.balanceWrap}>
           <Text style={styles.balanceText}>{balanceStr}</Text>
+        </View>
+        <View style={styles.commandWrap}>
+          <TouchableHighlight
+            onPress={() => {
+              navigation.navigate('TransList', { divAccount });
+            }}
+          >
+            <Text style={styles.commandText}>거래내역</Text>
+          </TouchableHighlight>
         </View>
       </View>
     );

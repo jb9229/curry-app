@@ -7,6 +7,9 @@ import {
 import { validate } from '../../utils/validation';
 
 const styles = StyleSheet.create({
+  container: {
+    marginTop: 22,
+  },
   addDivAccModalContainer: {
     flex: 1,
     alignItems: 'center',
@@ -34,20 +37,20 @@ type Props = {
 };
 
 type State = {
-  divAccDescErrorMessage: string,
-  divAccBalErrorMessage: string,
-  addDivAccDescription: string,
-  addDivAccBalance: number,
+  addDescErrorMessage: string,
+  addBalErrorMessage: string,
+  addDescription: string,
+  addBalance: number,
 };
 export default class DivAccFormModal extends React.Component<Props, State> {
   constructor(props: any) {
     super(props);
 
     this.state = {
-      divAccDescErrorMessage: '',
-      divAccBalErrorMessage: '',
-      addDivAccDescription: '',
-      addDivAccBalance: 0,
+      addDescription: '',
+      addBalance: 0,
+      addDescErrorMessage: '',
+      addBalErrorMessage: '',
     };
   }
 
@@ -55,31 +58,37 @@ export default class DivAccFormModal extends React.Component<Props, State> {
    * Divide Account 추가
    */
   createDivAcc = () => {
-    const { createDivAcc } = this.props;
+    const { createDivAcc, setVisibleDivAccFormModal } = this.props;
 
-    if (!this.isValidSubmitInfo()) {
+    if (!this.isValidDivAccCreaSubmit()) {
       return;
     }
 
-    const { addDivAccDescription, addDivAccBalance } = this.state;
+    const { addDescription, addBalance } = this.state;
 
-    createDivAcc(addDivAccDescription, addDivAccBalance);
+    createDivAcc(addDescription, addBalance);
+
+    setVisibleDivAccFormModal(false);
   };
 
-  isValidSubmitInfo = () => {
-    const { addDivAccDescription, addDivAccBalance } = this.state;
+  /**
+   * 나누기통장 생성 유효성검사 함수
+   * @returns result 유효검사 결과
+   */
+  isValidDivAccCreaSubmit = () => {
+    const { addDescription, addBalance } = this.state;
     const { defDivAccBalance } = this.props;
 
-    let v = validate('textMax', addDivAccDescription, true, 10);
+    let v = validate('textMax', addDescription, true, 10);
     if (!v[0]) {
-      // console.log('invalid addDivAccDescription');
-      this.setState({ divAccDescErrorMessage: v[1] });
+      // console.log('invalid addDescription');
+      this.setState({ addDescErrorMessage: v[1] });
       return false;
     }
 
-    v = validate('decimalMax', addDivAccBalance, true, defDivAccBalance);
+    v = validate('decimalMax', addBalance, true, defDivAccBalance);
     if (!v[0]) {
-      this.setState({ divAccBalErrorMessage: v[1] });
+      this.setState({ addBalErrorMessage: v[1] });
       return false;
     }
 
@@ -89,13 +98,13 @@ export default class DivAccFormModal extends React.Component<Props, State> {
   render() {
     const { isVisibleDivAccFormModal, setVisibleDivAccFormModal, defDivAccBalance } = this.props;
     const {
-      addDivAccDescription,
-      addDivAccBalance,
-      divAccBalErrorMessage,
-      divAccDescErrorMessage,
+      addDescription,
+      addBalance,
+      addBalErrorMessage,
+      addDescErrorMessage,
     } = this.state;
     return (
-      <View style={{ marginTop: 22 }}>
+      <View style={styles.container}>
         <Modal
           animationType="slide"
           transparent
@@ -109,26 +118,26 @@ export default class DivAccFormModal extends React.Component<Props, State> {
               <Text>통장 설명: </Text>
               <TextInput
                 placeholder="통장 설명"
-                value={addDivAccDescription}
+                value={addDescription}
                 onChangeText={(text) => {
-                  this.setState({ addDivAccDescription: text });
+                  this.setState({ addDescription: text });
                   const v = validate('text', text, true);
-                  this.setState({ divAccDescErrorMessage: v[1] });
+                  this.setState({ addDescErrorMessage: v[1] });
                 }}
               />
-              <Text style={styles.errorMessage}>{divAccDescErrorMessage}</Text>
+              <Text style={styles.errorMessage}>{addDescErrorMessage}</Text>
               <Text>초기 금액: </Text>
               <TextInput
                 placeholder="최대 가능 금액: "
                 keyboardType="numeric"
-                value={`${addDivAccBalance}`}
+                value={`${addBalance}`}
                 onChangeText={(text) => {
                   const value = Number.parseInt(text, 10);
                   const v = validate('decimalMax', value, true, defDivAccBalance);
-                  this.setState({ addDivAccBalance: value, divAccBalErrorMessage: v[1] });
+                  this.setState({ addBalance: value, addBalErrorMessage: v[1] });
                 }}
               />
-              <Text style={styles.errorMessage}>{divAccBalErrorMessage}</Text>
+              <Text style={styles.errorMessage}>{addBalErrorMessage}</Text>
 
               <View style={styles.addDivAccModButWrap}>
                 <TouchableHighlight

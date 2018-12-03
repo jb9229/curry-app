@@ -36,8 +36,8 @@ const styles = StyleSheet.create({
   },
 });
 type Props = {
-  oriAccounts: Array<Object>,
-  divAccounts: Array<Object>,
+  oriAccList: Array<Object>,
+  divAccList: Array<Object>,
   selOriAccount: Object,
   changeOriAcc: Function,
   createDivAcc: Function,
@@ -45,24 +45,26 @@ type Props = {
 };
 export default function BalanceListPresenter(props_: Props) {
   const {
-    oriAccounts,
-    divAccounts,
+    oriAccList,
+    divAccList,
     selOriAccount,
     changeOriAcc,
     createDivAcc,
     deleteDivAcc,
+    navigation,
   } = props_;
   return (
     <View style={styles.container}>
       <OriAccSelOrganism
-        oriAccounts={oriAccounts}
+        oriAccList={oriAccList}
         selOriAccount={selOriAccount}
         changeOriAcc={changeOriAcc}
       />
       <DivAccListOrganism
-        divAccounts={divAccounts}
+        divAccList={divAccList}
         createDivAcc={createDivAcc}
         deleteDivAcc={deleteDivAcc}
+        navigation={navigation}
       />
     </View>
   );

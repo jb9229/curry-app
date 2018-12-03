@@ -26,18 +26,18 @@ const styles = StyleSheet.create({
 });
 
 type Props = {
-  navigation: Object,
+  navigation: Object
 };
 
 type State = {
   inquiryToken: string,
-  isEmptyOriAcc?: boolean,
-  oriAccounts: Array<Object>,
+  oriAccList: Array<Object>,
   selOriAccount: {
     id: number,
     fintech_use_num: string,
   },
-  divAccounts: Array<Object>,
+  divAccList: Array<Object>,
+  isEmptyOriAccList?: boolean,
 };
 
 export default class BalanceListScreen extends React.Component<Props, State> {
@@ -45,13 +45,13 @@ export default class BalanceListScreen extends React.Component<Props, State> {
     super(props);
     this.state = {
       inquiryToken: 'Bearer 5a965cd7-0ec3-4312-a7aa-dc8da4838e18',
-      isEmptyOriAcc: undefined,
-      oriAccounts: [],
+      isEmptyOriAccList: undefined,
+      oriAccList: [],
       selOriAccount: {
         id: 0,
         fintech_use_num: '',
       },
-      divAccounts: [],
+      divAccList: [],
     };
   }
 
@@ -108,7 +108,7 @@ export default class BalanceListScreen extends React.Component<Props, State> {
     };
 
     this.setState({
-      divAccounts: [newAccount],
+      divAccList: [newAccount],
     });
 
     this.requestDivAccList(selOriAccount.id);
@@ -121,10 +121,10 @@ export default class BalanceListScreen extends React.Component<Props, State> {
    * @returns null
    */
   addDivAcc = (divAccInfoList: Array<Object>) => {
-    const alanceccounts = this.calDefaultDivAccountBalance(divAccInfoList);
+    const calBalanceDivAccounts = this.calDefDivAccBalance(divAccInfoList);
 
     this.setState({
-      divAccounts: [...calBalanceDivAccounts, ...divAccInfoList],
+      divAccList: [...calBalanceDivAccounts, ...divAccInfoList],
     });
   };
 
@@ -159,17 +159,17 @@ export default class BalanceListScreen extends React.Component<Props, State> {
   /**
    * 대표통장 잔액 계산 함수
    * @param {Array} newDivAccounts 추가될 나누기통장 리스트
-   * @returns divAccounts 대표통장의 잔액이 계산된 나누기통장 리스트
+   * @returns divAccList 대표통장의 잔액이 계산된 나누기통장 리스트
    */
   calDefDivAccBalance = (newDivAccounts: Array<Object>) => {
-    const { divAccounts } = this.state;
+    const { divAccList } = this.state;
 
     newDivAccounts.forEach((newDivAccount) => {
-      const defaultDivAccounts = divAccounts[0];
+      const defaultDivAccounts = divAccList[0];
       defaultDivAccounts.balance -= newDivAccount.balance;
     });
 
-    return divAccounts;
+    return divAccList;
   };
 
   /**
@@ -261,7 +261,7 @@ export default class BalanceListScreen extends React.Component<Props, State> {
   };
 
   /**
-   * 나누기통장 잔액 커리서버에 요청 함수
+   * 나누기통장 리스트 커리서버에 요청 함수
    * @param oriAccID 원통장 아이디
    * @returns null
    */
@@ -321,8 +321,8 @@ export default class BalanceListScreen extends React.Component<Props, State> {
     }
 
     this.setState({
-      isEmptyOriAcc: isEmpty,
-      oriAccounts: resOriAccounts,
+      isEmptyOriAccList: isEmpty,
+      oriAccList: resOriAccounts,
     });
 
     this.refreshDivAccList();
@@ -357,22 +357,23 @@ export default class BalanceListScreen extends React.Component<Props, State> {
 
   render() {
     const {
-      isEmptyOriAcc, oriAccounts, selOriAccount, divAccounts,
+      isEmptyOriAccList, oriAccList, selOriAccount, divAccList,
     } = this.state;
     const { navigation } = this.props;
 
     const presenterProps = {
-      oriAccounts,
+      oriAccList,
       selOriAccount,
-      divAccounts,
+      divAccList,
       changeOriAcc: this.changeOriAcc,
       createDivAcc: this.createDivAcc,
       deleteDivAcc: this.deleteDivAcc,
+      ...this.props,
     };
 
     return (
       <View style={styles.container}>
-        {isEmptyOriAcc && (
+        {isEmptyOriAccList && (
           <View style={styles.emptyAccount}>
             <TouchableHighlight
               onPress={() => {
@@ -383,7 +384,7 @@ export default class BalanceListScreen extends React.Component<Props, State> {
             </TouchableHighlight>
           </View>
         )}
-        {!isEmptyOriAcc && <BalanceListPresenter {...presenterProps} />}
+        {!isEmptyOriAccList && <BalanceListPresenter {...presenterProps} />}
       </View>
     );
   }
