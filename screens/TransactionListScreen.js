@@ -1,15 +1,21 @@
 // @flow
 import React from 'react';
 import {
-  Alert, CheckBox, FlatList, Modal, Picker, StyleSheet, Text, TouchableHighlight, View,
+  Alert,
+  FlatList,
+  Modal,
+  Picker,
+  StyleSheet,
+  Text,
+  TouchableHighlight,
+  View,
 } from 'react-native';
 import moment from 'moment';
 
-import {
-  CURRYSERVER_DIVACCOUNTS,
-  OPENBANKSERVER_ACCOUNT_TRANSACTIONLIST,
-} from '../constants/Network';
+import { CURRYSERVER_DIVACCOUNTS, CURRYSERVER_TRANSINFO, OPENBANKSERVER_ACCOUNT_TRANSACTIONLIST } from '../constants/Network';
 import { handleJsonResponse } from '../utils/network-common';
+import { MultiSelectList, TRANSACTION_LIST } from '../components/molecules/MultiSelectList';
+import TransListItem from '../components/molecules/TransListItem';
 
 type Props = {
   divAccount: Object,
@@ -18,7 +24,6 @@ type State = {
   oriAccTransList: Array<Object>,
   divAccTransList: Array<Object>,
   inquiryToken: '',
-  otherDivAccList: Array<Object>,
   checkedTransList: Array<Object>,
   isVisibleMoveTransModal: boolean,
 };
@@ -55,58 +60,77 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
   },
-  transListTableRow: {
-    flex: 1,
-    flexDirection: 'row',
-  },
-  depositText: {
-    color: 'blue',
-  },
-  withdrawalText: {
-    color: 'red',
-  },
 });
 
 const transTestData = JSON.parse(
-  '{ "api_tran_id": "2cfc5541-17ab-40c7-b12f-82fde00f7f5f", "rsp_code": "A0000", "rsp_message": " ", "api_tran_dtm": "20160826111428881", "bank_tran_id": "F010226114NIBXQ5FWVG","bank_tran_date": "20160826","bank_code_tran": "097","bank_rsp_code": "000","bank_rsp_message": " ","fintech_use_num": "101600000169321934052424","balance_amt": "500000","page_index_use_yn": "N","page_index": "1","total_record_cnt": "1","page_record_cnt": "1","next_page_yn": "N","res_list": [{"tran_date": "20160611","tran_time": "024111","inout_type": "입금","tran_type": "현금","print_content": "의료비","tran_amt": "450000","after_balance_amt": "10000000","branch_name": "분당점"}]}',
+  '{ "api_tran_id": "2cfc5541-17ab-40c7-b12f-82fde00f7f5f", "rsp_code": "A0000", "rsp_message": " ", "api_tran_dtm": "20160826111428881", "bank_tran_id": "F010226114NIBXQ5FWVG","bank_tran_date": "20160826","bank_code_tran": "097","bank_rsp_code": "000","bank_rsp_message": " ","fintech_use_num": "101600000169321934052424","balance_amt": "500000","page_index_use_yn": "N","page_index": "1","total_record_cnt": "1","page_record_cnt": "1","next_page_yn": "N","res_list": [{"tran_date": "20160611","tran_time": "024111","inout_type": "입금","tran_type": "현금","print_content": "의료비","tran_amt": "450000","after_balance_amt": "10000000","branch_name": "분당점"},{"tran_date": "20160612","tran_time": "100000","inout_type": "출금","tran_type": "카드","print_content": "식비","tran_amt": "110000","after_balance_amt": "7000000","branch_name": "수원점"}]}',
 );
-export default class TransactionListScreen extends React.Component<Props, State> {
+export default class TransactionListScreen extends React.PureComponent<Props, State> {
   constructor(props: any) {
     super(props);
     this.state = {
       inquiryToken: 'Bearer 5a965cd7-0ec3-4312-a7aa-dc8da4838e18',
+      transactionList: [],
       oriAccTransList: [],
       divAccTransList: [],
       filtDefAccTransList: [],
-      otherDivAccList: [],
       checkedTransList: [],
       isVisibleMoveTransModal: false,
       selMoveDivAccount: null,
+      selected: (new Map(): Map<string, boolean>),
     };
   }
 
   componentDidMount() {
-    this.requestOriAccTransList();
+    const { divAccount } = this.props.navigation.state.params;
+    const { divAccTransList, filtDefAccTransList } = this.state;
+
+    this.requestOriAccTransList();  //when default divaccount
+
+    if (divAccount.isDefault) {
+      this.setState({ transactionList: filtDefAccTransList });
+    } else {
+      this.setState({ transactionList: divAccTransList });
+    }
   }
 
   changeCheckTransList = (transactionInfo) => {
-    const { checkedTransList } = this.state;
-  }
+  };
 
   moveTransaction = () => {
+    const { transactionList, selected } = this.state;
     // validation tobemovelist가 비어 있는지 확인
-  }
+    // 갯수 20개로 제한!?
+    if (selected.size === 0) {
+      Alert.alert('옮길 거래내역을 선택 해 주세요.');
+
+      return false;
+    }
+
+    const moveList = [];
+    selected.forEach((value) => {
+      const { selMoveDivAccount } = this.state;
+      const moveTrans = value;
+      moveTrans.divAccId = selMoveDivAccount.id;
+      moveList.push(moveTrans);
+    });
+
+    const result = this.requestTransInfoSaveOrUpdate(moveList);
+
+    if(result){this.setState(isVisibleMoveTransModal: true);}
+  };
 
   /**
    * 거래내역 이동을 위한 Action Form 열기
    */
   openMoveTransListModal = async () => {
-    const { divAccount } = this.props.navigation.state.params;
+    const { otherDivAccList } = this.props.navigation.state.params;
 
-    const responseJson = await this.requestDivAccList(3);
-    
-    this.setState({ selMoveDivAccount: responseJson[0], otherDivAccList: responseJson, isVisibleMoveTransModal: true });
-  }
+    this.setState({
+      selMoveDivAccount: otherDivAccList[0],
+      isVisibleMoveTransModal: true,
+    });
+  };
 
   /**
    * 오픈뱅크서버에 거래내역 리스트 요청 함수
@@ -169,6 +193,34 @@ export default class TransactionListScreen extends React.Component<Props, State>
       });
   };
 
+  requestTransInfoSaveOrUpdate = (tranInfoList) => {
+    console.log(tranInfoList);
+    fetch(`${CURRYSERVER_TRANSINFO}`, {
+      method: 'POST',
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'application/json; charset=UTF-8',
+      },
+      body: JSON.stringify(tranInfoList),
+    })
+      .then(handleJsonResponse)
+      .then((responseJson) => {
+        // this.successReqOriAccTransList(responseJson);
+
+        // This is test code
+        this.setState({ divAccTransList: transTestData.res_list });
+
+        return responseJson;
+      })
+      .catch((error) => {
+        Alert.alert(
+          '거래내역 저장 및 수정에 실패 했습니다, 통신상태 확인 후 재 시도해 주세요',
+          error.message,
+        );
+        return error;
+      });
+  };
+
   /**
    * 나누기통장 리스트 커리서버에 요청 함수
    * @param oriAccID 원통장 아이디
@@ -191,29 +243,52 @@ export default class TransactionListScreen extends React.Component<Props, State>
       return;
     }
 
-    const rspCode = balanceInfo.rsp_code;
+    const rspCode = resTransInfo.rsp_code;
     if (rspCode === 'A0000') {
     }
 
-    const transList = balanceInfo.res_list;
-
-    this.setState((oriAccTransList: transList));
+    const transList = resTransInfo.res_list;
   };
 
+  onPressTransItem = (id: string, item: Object) => {
+    // updater functions are preferred for transactional updates
+    this.setState((state) => {
+      // copy the map rather than modifying state.
+      const selected = new Map(state.selected);
+      const selTransInfo = selected.get(id);
+      console.log(selTransInfo);
+      if (selTransInfo === undefined) {
+        selected.set(id, item); // toggle
+      }else{
+        selected.delete(id); // toggle
+      }
+      return { selected };
+    });
+  };
+
+  renderTransListItem = ({ item, index}) => (
+    <TransListItem
+      id={index.toString()}
+      onPressItem={this.onPressTransItem}
+      selected={this.state.selected.get(index.toString()) === undefined ? false : true}
+      item={item}
+    />
+  );
+
   render() {
-    const { divAccount } = this.props.navigation.state.params;
-    const { filtDefAccTransList, divAccTransList, otherDivAccList, selMoveDivAccount, isVisibleMoveTransModal } = this.state;
+    const { divAccount, otherDivAccList } = this.props.navigation.state.params;
+    const {
+      filtDefAccTransList,
+      divAccTransList,
+      selMoveDivAccount,
+      isVisibleMoveTransModal,
+      selected,
+    } = this.state;
 
     const accountItems = otherDivAccList.map(account => (
       <Picker.Item key={account.id} value={account} label={account.description} />
     ));
 
-    let transactionList;
-    if (divAccount.isDefault) {
-      transactionList = filtDefAccTransList;
-    } else {
-      transactionList = divAccTransList;
-    }
     return (
       <View style={styles.container}>
         <View style={styles.moveActionModal}>
@@ -224,7 +299,7 @@ export default class TransactionListScreen extends React.Component<Props, State>
             onRequestClose={() => {
               Alert.alert('Modal has been closed.');
             }}
-            >
+          >
             <View style={styles.moveActionModalContainer}>
               <View style={styles.moveActionModalWrap}>
                 <Picker
@@ -274,27 +349,10 @@ export default class TransactionListScreen extends React.Component<Props, State>
             <Text>잔액</Text>
           </View>
           <FlatList
-            data={transactionList}
+            data={divAccTransList}
+            extraData={selected}
             keyExtractor={(item, index) => index.toString()}
-            renderItem={({ item }) => (
-              <View style={styles.transListTableRow}>
-                <CheckBox
-                  onValueChange={() => this.changeCheckTransList(item)}
-                  value={true}
-                />
-                <Text>
-                  {item.tran_date}
-                  {item.tran_time}
-                </Text>
-                <Text>{item.branch_name}</Text>
-                {item.inout_type === '입금' ? (
-                  <Text style={styles.depositText}>{item.tran_amt}</Text>
-                ) : (
-                  <Text style={styles.withdrawalText}>{item.tran_amt}</Text>
-                )}
-                <Text>{item.after_balance_amt}</Text>
-              </View>
-            )}
+            renderItem={this.renderTransListItem}
           />
         </View>
       </View>

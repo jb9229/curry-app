@@ -58,10 +58,21 @@ export default class DivAccListOrganism extends React.Component<Props, States> {
     this.setState({ isVisibleDivAccFormModal: visible });
   };
 
+  navigateTransListScreen = (divAccount) => {
+    const { navigation, divAccList } = this.props;
+
+    const otherDivAccList = [];
+    divAccList.forEach((account) => {
+      if (account.id !== divAccount.id) {
+        otherDivAccList.push(account);
+      }
+    });
+
+    navigation.navigate('TransList', { divAccount, otherDivAccList });
+  };
+
   render() {
-    const {
-      divAccList, deleteDivAcc, createDivAcc, navigation,
-    } = this.props;
+    const { divAccList, deleteDivAcc, createDivAcc } = this.props;
     const { isVisibleDivAccFormModal } = this.state;
 
     let defDivAccBalance = -1;
@@ -87,7 +98,7 @@ export default class DivAccListOrganism extends React.Component<Props, States> {
                   <AccountCard
                     divAccount={item}
                     deleteAccount={deleteDivAcc}
-                    navigation={navigation}
+                    navigateTransListScreen={this.navigateTransListScreen}
                   />
                 )}
               />

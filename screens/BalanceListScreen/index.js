@@ -96,6 +96,7 @@ export default class BalanceListScreen extends React.Component<Props, State> {
     // const rspCode = balanceInfo.rsp_code;
     // if (rspCode === 'A0000') {
     const newAccount = {
+      id: -1,
       isDefault: true,
       description: '한달 용돈',
       // balance: balanceInfo.balance_amt,

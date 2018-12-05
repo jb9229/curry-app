@@ -49,7 +49,7 @@ const styles = StyleSheet.create({
 
 type Props = {
   divAccount: Object,
-  navigation: Object,
+  navigateTransListScreen: Function,
 };
 
 export default class AccountCard extends React.Component<Props> {
@@ -81,7 +81,7 @@ export default class AccountCard extends React.Component<Props> {
   };
 
   render() {
-    const { divAccount, navigation } = this.props;
+    const { divAccount, navigateTransListScreen } = this.props;
     const balanceStr = divAccount.balance.format();
 
     return (
@@ -107,7 +107,7 @@ export default class AccountCard extends React.Component<Props> {
         <View style={styles.commandWrap}>
           <TouchableHighlight
             onPress={() => {
-              navigation.navigate('TransList', { divAccount });
+              navigateTransListScreen(divAccount);
             }}
           >
             <Text style={styles.commandText}>거래내역</Text>
