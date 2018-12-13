@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import moment from 'moment';
 import BalanceListPresenter from './presenter';
-import { handleJsonResponse } from '../../utils/network-common';
+import { handleJsonResponse, dispatchJsonResponse, dispatchJsonSuccResponse, handleNetworkError } from '../../utils/network-common';
 import {
   CURRYSERVER_ORIACCOUNTS,
   CURRYSERVER_DIVACCOUNTS,
@@ -221,6 +221,7 @@ export default class BalanceListScreen extends React.Component<Props, State> {
    */
   refreshDivAccList = () => {
     this.requestOriAccBalance();
+    // this.successReqOriAccBalance({a: 'ab'}); // Test
   };
 
   /**
@@ -250,16 +251,9 @@ export default class BalanceListScreen extends React.Component<Props, State> {
         },
       },
     )
-      .then(handleJsonResponse)
-      .then((responseJson) => {
-        this.successReqOriAccBalance(responseJson);
-        return responseJson;
-      })
-      .catch((error) => {
-        Alert.alert('원통장 잔액 요청에 실패 했습니다, 통신상태 확인 후 재 시도해 주세요', error.message);
-        return error;
-      });
-  };
+      .then(res => dispatchJsonSuccResponse(res, this.successReqOriAccBalance))
+      .catch(error => handleNetworkError(error, this.successReqOriAccBalance)); // Test code
+  }
 
   /**
    * 나누기통장 리스트 커리서버에 요청 함수

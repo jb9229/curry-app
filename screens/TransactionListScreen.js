@@ -11,22 +11,9 @@ import {
   View,
 } from 'react-native';
 import moment from 'moment';
-
-import { CURRYSERVER_DIVACCOUNTS, CURRYSERVER_TRANSINFO, OPENBANKSERVER_ACCOUNT_TRANSACTIONLIST } from '../constants/Network';
-import { handleJsonResponse } from '../utils/network-common';
-import { MultiSelectList, TRANSACTION_LIST } from '../components/molecules/MultiSelectList';
+import { handleJsonResponse, dispatchJsonSuccResponse, dispatchJsonResponse, handleNetworkError } from '../utils/network-common';
+import * as api from '../api/api';
 import TransListItem from '../components/molecules/TransListItem';
-
-type Props = {
-  divAccount: Object,
-};
-type State = {
-  oriAccTransList: Array<Object>,
-  divAccTransList: Array<Object>,
-  inquiryToken: '',
-  checkedTransList: Array<Object>,
-  isVisibleMoveTransModal: boolean,
-};
 
 const styles = StyleSheet.create({
   container: {
@@ -60,182 +47,193 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
   },
+  searchTimeWrap: {
+    flex: 1,
+    flexDirection: 'row',
+  },
+  tiSearPeriod: {
+    fontSize: 24,
+    padding: 5,
+    margin: 3,
+  },
 });
 
+type Props = {
+  navigation: Object,
+}
+
+type State = {
+  inquiryToken: string,
+  transactionList: Array<Object>,
+  divAccTransList: Array<Object>,
+  selMoveDivAccount: Object,
+  checkedTransList: Array<Object>,
+  moveTransSelMap: Map<string, Object>,
+}
+
 const transTestData = JSON.parse(
-  '{ "api_tran_id": "2cfc5541-17ab-40c7-b12f-82fde00f7f5f", "rsp_code": "A0000", "rsp_message": " ", "api_tran_dtm": "20160826111428881", "bank_tran_id": "F010226114NIBXQ5FWVG","bank_tran_date": "20160826","bank_code_tran": "097","bank_rsp_code": "000","bank_rsp_message": " ","fintech_use_num": "101600000169321934052424","balance_amt": "500000","page_index_use_yn": "N","page_index": "1","total_record_cnt": "1","page_record_cnt": "1","next_page_yn": "N","res_list": [{"tran_date": "20160611","tran_time": "024111","inout_type": "입금","tran_type": "현금","print_content": "의료비","tran_amt": "450000","after_balance_amt": "10000000","branch_name": "분당점"},{"tran_date": "20160612","tran_time": "100000","inout_type": "출금","tran_type": "카드","print_content": "식비","tran_amt": "110000","after_balance_amt": "7000000","branch_name": "수원점"}]}',
+  '{ "api_tran_id": "2cfc5541-17ab-40c7-b12f-82fde00f7f5f", "rsp_code": "A0000", "rsp_message": " ", "api_tran_dtm": "20160826111428881", "bank_tran_id": "F010226114NIBXQ5FWVG","bank_tran_date": "20160826","bank_code_tran": "097","bank_rsp_code": "000","bank_rsp_message": " ","fintech_use_num": "101600000169321934052424","balance_amt": "500000","page_index_use_yn": "N","page_index": "1","total_record_cnt": "1","page_record_cnt": "1","next_page_yn": "N","res_list": [{"tran_date": "20181207","tran_time": "024111","inout_type": "입금","tran_type": "현금","print_content": "모로코점","tran_amt": "2500","after_balance_amt": "10000000","branch_name": "분당점"},{"tran_date": "20160612","tran_time": "100000","inout_type": "출금","tran_type": "카드","print_content": "식비","tran_amt": "110000","after_balance_amt": "7000000","branch_name": "수원점"}]}',
 );
 export default class TransactionListScreen extends React.PureComponent<Props, State> {
   constructor(props: any) {
     super(props);
+
     this.state = {
       inquiryToken: 'Bearer 5a965cd7-0ec3-4312-a7aa-dc8da4838e18',
       transactionList: [],
-      oriAccTransList: [],
       divAccTransList: [],
-      filtDefAccTransList: [],
-      checkedTransList: [],
       isVisibleMoveTransModal: false,
       selMoveDivAccount: null,
-      selected: (new Map(): Map<string, boolean>),
+      moveTransSelMap: (new Map(): Map<string, Object>),
     };
   }
 
   componentDidMount() {
-    const { divAccount } = this.props.navigation.state.params;
-    const { divAccTransList, filtDefAccTransList } = this.state;
+    this.searchTransList(0, 3);
+  }
 
-    this.requestOriAccTransList();  //when default divaccount
+  /**
+   * 거래내역 조회 함수
+   *
+   * @param {number} monthPeriod 현재로부터 월 조회 기간
+   * @param {number} dayPeriod 현재로부터 일 조회 기간
+   * @returns null
+   */
+  searchTransList = async (monthPeriod: number, dayPeriod: number) => {
+    const { navigation } = this.props;
+    const { divAccTransList } = this.state;
+    const { divAccount } = navigation.state.params;
 
+    await this.getDivTransList(monthPeriod, dayPeriod);
+    console.log('=============searchTransList================');
+    console.log(divAccTransList);
     if (divAccount.isDefault) {
+      const oriAccTransList = await this.requestOriAccTransList();// when default divaccount
+      const filtDefAccTransList = this.filterDefDivAccTransList(this.filtCondition)(
+        oriAccTransList, divAccTransList,
+      );
+
       this.setState({ transactionList: filtDefAccTransList });
     } else {
       this.setState({ transactionList: divAccTransList });
     }
   }
 
-  changeCheckTransList = (transactionInfo) => {
-  };
+  /**
+   * 대표나누기통장 거래내역 필터링 함수
+   *
+   * @param {function} pred 필터링 조건 함수
+   * @param {Array} a 필터링 될 리스트
+   * @param {Array} b 필터링 할 리스트
+   * @return 필터링 된 리스트
+   */
+  filterDefDivAccTransList = pred => (a, b) => a.filter(x => !b.some(y => pred(x, y)));
 
-  moveTransaction = () => {
-    const { transactionList, selected } = this.state;
-    // validation tobemovelist가 비어 있는지 확인
-    // 갯수 20개로 제한!?
-    if (selected.size === 0) {
-      Alert.alert('옮길 거래내역을 선택 해 주세요.');
+  /**
+   * 필터링 조건 함수
+   *
+   * @param {Array} x 필터링 될 리스트
+   * @param {Array} y 필터링 할 리스트
+   * @return 필터링 조건
+   */
+  filtCondition = (x, y) => (x.tran_date === y.tran_date && x.tran_time === y.tran_time
+    && x.tran_amt === y.tran_amt && x.after_balance_amt === y.after_balance_amt)
 
-      return false;
+  /**
+   * 나누기통장 거래내역 리스트 획득 함수
+   *
+   * @param {number} monthPeriod 현재로부터 월 조회 기간
+   * @param {number} dayPeriod 현재로부터 일 조회 기간
+   * @return {Array} 나누기통장 거래내역 리스트
+   */
+  getDivTransList = (monthPeriod: number, dayPeriod: number) => {
+    const { navigation } = this.props;
+    const { divAccount, otherDivAccList } = navigation.state.params;
+
+    // 조회 조건 설정
+    const fromDate = moment()
+      .subtract(monthPeriod, 'months')
+      .subtract(dayPeriod, 'days')
+      .format('YYYYMMDD');
+    const toDate = moment().format('YYYYMMDD');
+
+    const searchDivIds = [];
+    if (divAccount.isDefault) {
+      otherDivAccList.forEach((account) => {
+        searchDivIds.push(account.id);
+      });
+    } else {
+      searchDivIds.push(divAccount.id);
     }
 
+    // 요청
+    api.getDivAccTransInfoList(searchDivIds, fromDate, toDate)
+      .then(res => dispatchJsonSuccResponse(res, this.successGetDivTransList))
+      .catch(handleNetworkError);
+  }
+
+  /**
+   * 거래내역을 다른 나누기통장으로 옮기기 함수(MoveTransModal창 이동버튼에 의해서만 호출됨)
+   */
+  moveTransaction = () => {
+    const { moveTransSelMap } = this.state;
+    const { selMoveDivAccount } = this.state;
+
+    // validation
+    if (moveTransSelMap.size === 0) { Alert.alert('옮길 거래내역을 선택 해 주세요.'); return; }
+
+    // make new move list
     const moveList = [];
-    selected.forEach((value) => {
-      const { selMoveDivAccount } = this.state;
-      const moveTrans = value;
+    moveTransSelMap.forEach((item) => {
+      const moveTrans = item;
       moveTrans.divAccId = selMoveDivAccount.id;
       moveList.push(moveTrans);
     });
 
-    const result = this.requestTransInfoSaveOrUpdate(moveList);
+    // request
+    if (selMoveDivAccount.isDefault) {
+      this.requestDeleteTransList(moveList);
+    } else {
+      this.requestSaveOrUpdateTransList(moveList);
+    }
 
-    if(result){this.setState(isVisibleMoveTransModal: true);}
-  };
+    // close modal
+    this.setState({ isVisibleMoveTransModal: false });
 
-  /**
-   * 거래내역 이동을 위한 Action Form 열기
-   */
-  openMoveTransListModal = async () => {
-    const { otherDivAccList } = this.props.navigation.state.params;
-
-    this.setState({
-      selMoveDivAccount: otherDivAccList[0],
-      isVisibleMoveTransModal: true,
-    });
-  };
+    // refresh tranaction list
+    this.searchTransList(0, 3);
+  }
 
   /**
    * 오픈뱅크서버에 거래내역 리스트 요청 함수
    */
   requestOriAccTransList = () => {
-    const { divAccount } = this.props.navigation.state.params;
+    const { navigation } = this.props;
+    const { divAccount } = navigation.state.params;
     const { inquiryToken } = this.state;
 
-    // valiation
-    if (divAccount == null) {
-      return;
-    }
+    const transList = api.getOpenBankTransList(inquiryToken, divAccount)
+      .then(res => dispatchJsonSuccResponse(res, this.successReqOriAccTransList));
 
-    const paramData = {
-      // Default 1일 조회
-      fintech_use_num: divAccount.fintech_use_num,
-      from_date: '20181203090000',
-      to_date: '20181203100000',
-      sort_order: 'D', // 정렬순서(D:Descending, A:Ascending)
-      page_index: '1', // 페이지번호
+    // return transList;
+    return transTestData.res_list; // testData
+  }
 
-      tran_dtime: moment().format('YYYYMMDDHHmmss'), // 요청일시
-      befor_inquiry_trace_info: '', // 직전 조회 추적 정보 (옵션?)
-      list_tran_seqno: '', // 최종 거래내역 순번(옵션?)
-    };
-
-    fetch(
-      `${OPENBANKSERVER_ACCOUNT_TRANSACTIONLIST}?
-        fintech_use_num=${encodeURIComponent(paramData.fintech_use_num)}
-        &from_date=${encodeURIComponent(paramData.from_date)}
-        &to_date=${encodeURIComponent(paramData.to_date)}
-        &sort_order=${encodeURIComponent(paramData.sort_order)}
-        &page_index=${encodeURIComponent(paramData.page_index)}
-        &tran_dtime=${encodeURIComponent(paramData.tran_dtime)}
-        `,
-      {
-        headers: {
-          Accept: 'application/json',
-          'Content-Type': 'application/json; charset=UTF-8',
-          Authorization: inquiryToken,
-        },
-      },
-    )
-      .then(handleJsonResponse)
-      .then((responseJson) => {
-        // this.successReqOriAccTransList(responseJson);
-
-        // This is test code
-        this.setState({ divAccTransList: transTestData.res_list });
-
-        console.log(this.state.divAccTransList);
-        return responseJson;
-      })
-      .catch((error) => {
-        Alert.alert(
-          '원통장 잔액 요청에 실패 했습니다, 통신상태 확인 후 재 시도해 주세요',
-          error.message,
-        );
-        return error;
-      });
+  requestSaveOrUpdateTransList = (tranInfoList: Array<Object>) => {
+    api.saveOrUpdateTransInfo(tranInfoList)
+      .then(handleJsonResponse);
   };
 
-  requestTransInfoSaveOrUpdate = (tranInfoList) => {
-    console.log(tranInfoList);
-    fetch(`${CURRYSERVER_TRANSINFO}`, {
-      method: 'POST',
-      headers: {
-        Accept: 'application/json',
-        'Content-Type': 'application/json; charset=UTF-8',
-      },
-      body: JSON.stringify(tranInfoList),
-    })
-      .then(handleJsonResponse)
-      .then((responseJson) => {
-        // this.successReqOriAccTransList(responseJson);
-
-        // This is test code
-        this.setState({ divAccTransList: transTestData.res_list });
-
-        return responseJson;
-      })
-      .catch((error) => {
-        Alert.alert(
-          '거래내역 저장 및 수정에 실패 했습니다, 통신상태 확인 후 재 시도해 주세요',
-          error.message,
-        );
-        return error;
-      });
+  requestDeleteTransList = (tranInfoList: Array<Object>) => {
+    api.deleteTransInfo(tranInfoList)
+      .then(handleJsonResponse);
   };
 
-  /**
-   * 나누기통장 리스트 커리서버에 요청 함수
-   * @param oriAccID 원통장 아이디
-   * @returns null
-   */
-  requestDivAccList = (oriAccID: number) => fetch(`${CURRYSERVER_DIVACCOUNTS}${oriAccID}`)
-    .then(handleJsonResponse)
-    .then(responseJson => responseJson)
-    .catch((error) => {
-      Alert.alert(
-        '나누기통장 잔액리스트 요청 실패, 통신상태 확인 후 다시 시도해 주세요.',
-        error.message,
-      );
-      return error;
-    });
+  successGetDivTransList = (resTransList) => {
+    console.log('=============successGetDivTransList===============');
+    console.log(resTransList);
+    this.setState({ divAccTransList: resTransList });
+  }
 
   successReqOriAccTransList = (resTransInfo) => {
     // validation
@@ -248,44 +246,53 @@ export default class TransactionListScreen extends React.PureComponent<Props, St
     }
 
     const transList = resTransInfo.res_list;
-  };
+  }
+
+  failReqOriAccTransList = () => {
+    console.log("failReqOriAccTransList");
+  }
 
   onPressTransItem = (id: string, item: Object) => {
     // updater functions are preferred for transactional updates
     this.setState((state) => {
       // copy the map rather than modifying state.
-      const selected = new Map(state.selected);
-      const selTransInfo = selected.get(id);
-      console.log(selTransInfo);
+      const moveTransSelMap = new Map(state.moveTransSelMap);
+      const selTransInfo = moveTransSelMap.get(id);
+
       if (selTransInfo === undefined) {
-        selected.set(id, item); // toggle
-      }else{
-        selected.delete(id); // toggle
+        moveTransSelMap.set(id, item); // toggle
+      } else {
+        moveTransSelMap.delete(id); // toggle
       }
-      return { selected };
+
+      return { moveTransSelMap };
     });
   };
 
-  renderTransListItem = ({ item, index}) => (
-    <TransListItem
-      id={index.toString()}
-      onPressItem={this.onPressTransItem}
-      selected={this.state.selected.get(index.toString()) === undefined ? false : true}
-      item={item}
-    />
-  );
+  renderTransListItem = (item, index) => {
+    const { moveTransSelMap } = this.state;
+
+    return (
+      <TransListItem
+        id={index.toString()}
+        onPressItem={this.onPressTransItem}
+        moveTransSelMap={moveTransSelMap.get(index.toString()) !== undefined}
+        item={item}
+      />
+    );
+  }
 
   render() {
-    const { divAccount, otherDivAccList } = this.props.navigation.state.params;
+    const { navigation } = this.props;
+    const { divAccount, otherDivAccList } = navigation.state.params;
     const {
-      filtDefAccTransList,
-      divAccTransList,
+      transactionList,
       selMoveDivAccount,
       isVisibleMoveTransModal,
-      selected,
+      moveTransSelMap,
     } = this.state;
 
-    const accountItems = otherDivAccList.map(account => (
+    const otherDivAccPickerItems = otherDivAccList.map(account => (
       <Picker.Item key={account.id} value={account} label={account.description} />
     ));
 
@@ -307,13 +314,11 @@ export default class TransactionListScreen extends React.PureComponent<Props, St
                   style={styles.moveAccPicker}
                   onValueChange={itemValue => this.setState({ selMoveDivAccount: itemValue })}
                 >
-                  {accountItems}
+                  {otherDivAccPickerItems}
                 </Picker>
                 <View style={styles.moveTransModButWrap}>
                   <TouchableHighlight
-                    onPress={() => {
-                      this.moveTransaction();
-                    }}
+                    onPress={() => this.moveTransaction}
                   >
                     <Text>이동</Text>
                   </TouchableHighlight>
@@ -333,13 +338,28 @@ export default class TransactionListScreen extends React.PureComponent<Props, St
         <View style={styles.searchCommandWarp}>
           <Text>{divAccount.description}</Text>
           <TouchableHighlight
-            onPress={() => {
-              this.openMoveTransListModal();
-            }}
+            onPress={() => this.setState({ isVisibleMoveTransModal: true })}
           >
             <Text>거내내역 이동</Text>
           </TouchableHighlight>
-          <Text>1일/1주/한달/3달</Text>
+          <View style={styles.searchTimeWrap}>
+            <TouchableHighlight onPress={() => this.searchTransList(0, 1)}>
+              <Text style={styles.tiSearPeriod}>1일</Text>
+            </TouchableHighlight>
+            <TouchableHighlight
+              onPress={() => this.searchTransList(0, 7)}
+            >
+              <Text style={styles.tiSearPeriod}>7일</Text>
+            </TouchableHighlight>
+            <TouchableHighlight
+              onPress={() => this.searchTransList(1, 0)}
+            >
+              <Text style={styles.tiSearPeriod}>1달</Text>
+            </TouchableHighlight>
+            <TouchableHighlight onPress={() => this.searchTransList(3, 0)}>
+              <Text style={styles.tiSearPeriod}>3달</Text>
+            </TouchableHighlight>
+          </View>
         </View>
         <View style={styles.transListWarp}>
           <View style={styles.transListTableHeaderRow}>
@@ -348,12 +368,15 @@ export default class TransactionListScreen extends React.PureComponent<Props, St
             <Text>금액</Text>
             <Text>잔액</Text>
           </View>
-          <FlatList
-            data={divAccTransList}
-            extraData={selected}
-            keyExtractor={(item, index) => index.toString()}
-            renderItem={this.renderTransListItem}
-          />
+          {transactionList.length > 0
+            && (
+            <FlatList
+              data={transactionList}
+              extraData={moveTransSelMap}
+              keyExtractor={(item, index) => index.toString()}
+              renderItem={this.renderTransListItem}
+            />
+            )}
         </View>
       </View>
     );
