@@ -17,30 +17,33 @@ export function handleJsonResponse(res) {
   throw error;
 }
 
-export function dispatchJsonSuccResponse(res, succFuction) {
+export function dispatchJsonSuccResponse(res, succFunction) {
   if (res.ok) {
     if (res.status === 204) {
       // NO_CONTENTS
-      succFuction();
-    } else {
-      res.json().then(responseJson => succFuction(responseJson));
+      succFunction();
+      return res;
     }
-  } else {
-    const errorMessage = `${res.status}, ${res.statusText}, ${res.url}`;
 
-    Alert.alert(
-      `예기치 못한 서버 장애 입니다, \n${errorMessage}\n문제현상 리포트 해 주시면 조속히 조치하는데 많은 도움이 됩니다.`,
-    );
+    return res.json().then(responseJson => succFunction(responseJson));
   }
+
+  const errorMessage = `${res.status}, ${res.statusText}, ${res.url}`;
+
+  Alert.alert(
+    `예기치 못한 서버 장애 입니다, \n${errorMessage}\n문제현상 리포트 해 주시면 조속히 조치하는데 많은 도움이 됩니다.`,
+  );
+
+  return res;
 }
 
-export function dispatchJsonResponse(res, succFuction, failFunction) {
+export function dispatchJsonResponse(res, succFunction, failFunction) {
   if (res.ok) {
     if (res.status === 204) {
       // NO_CONTENTS
-      succFuction();
+      succFunction();
     } else {
-      succFuction(res.json());
+      succFunction(res.json());
     }
   }
 

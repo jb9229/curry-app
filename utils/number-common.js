@@ -1,10 +1,10 @@
-export Number.prototype.format = function() {
-    if (this == 0) return 0;
+export function currencyformat(number) {
+  if (number == 0) return 0;
 
-    var reg = /(^[+-]?\d+)(\d{3})/;
-    var n = (this + '');
+  const reg = /(^[+-]?\d+)(\d{3})/;
+  let n = `${number}`;
 
-    while (reg.test(n)) n = n.replace(reg, '$1' + ',' + '$2');
+  while (reg.test(n)) n = n.replace(reg, '$1' + ',' + '$2');
 
-    return n;
+  return n;
 }

@@ -33,7 +33,7 @@ const styles = StyleSheet.create({
 });
 
 type Props = {
-  changeOriAcc: Function,
+  changeOriAccSel: Function,
   oriAccList: Array<Object>,
   selOriAccount: Object,
 };
@@ -44,14 +44,14 @@ export default class OriAccSelOrganism extends React.Component<Props> {
    * @returns null
    */
   changeOriAcc = (account: Object) => {
-    const { changeOriAcc } = this.props;
+    const { changeOriAccSel } = this.props;
 
     // validation
     if (account == null) {
       return;
     }
 
-    changeOriAcc(account);
+    changeOriAccSel(account);
   };
 
   render() {

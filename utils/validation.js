@@ -55,8 +55,8 @@ export function validate(nameField, value, essential, compareValue) {
       if (essential) {
         resp[0] = false;
         resp[1] = '필수 항목 입니다, 빈칸을 채워 주세요.';
-      } else {
-        resp[0] = true;
+
+        return resp;
       }
     }
 

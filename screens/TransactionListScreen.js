@@ -11,9 +11,11 @@ import {
   View,
 } from 'react-native';
 import moment from 'moment';
-import { handleJsonResponse, dispatchJsonSuccResponse, dispatchJsonResponse, handleNetworkError } from '../utils/network-common';
+import { handleJsonResponse, dispatchJsonSuccResponse, handleNetworkError } from '../utils/network-common';
 import * as api from '../api/api';
 import TransListItem from '../components/molecules/TransListItem';
+import colors from '../constants/Colors';
+import * as numberUtils from '../utils/number-common';
 
 const styles = StyleSheet.create({
   container: {
@@ -29,8 +31,25 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFF',
     padding: 20,
   },
+  accInfoWarp: {
+    flex: 1.2,
+    backgroundColor: colors.mainColorDark,
+  },
+  accInfoDescWrap: {
+    alignItems: 'center',
+  },
+  accInfoBalWrap: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  accInfoCommWrap: {
+    alignItems: 'flex-end',
+  },
   searchCommandWarp: {
-    flex: 1,
+    flex: 0.9,
+    alignItems: 'center',
+    backgroundColor: colors.mainColorLight,
   },
   transListWarp: {
     flex: 5,
@@ -43,18 +62,33 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
   },
-  transListTableHeaderRow: {
-    flex: 1,
+  searchDateCommWrap: {
+    flexDirection: 'row',
+    marginBottom: 2,
+  },
+  searchDateWrap: {
     flexDirection: 'row',
   },
-  searchTimeWrap: {
-    flex: 1,
-    flexDirection: 'row',
-  },
-  tiSearPeriod: {
-    fontSize: 24,
+  searPeriodText: {
+    fontSize: 21,
     padding: 5,
-    margin: 3,
+  },
+  selSearPeriText: {
+    color: 'blue',
+  },
+  desText: {
+    color: 'white',
+  },
+  balText: {
+    fontSize: 21,
+    color: 'white',
+  },
+  balUnitText: {
+    color: 'white',
+  },
+  moveCommText: {
+    color: 'white',
+    textDecorationLine: 'underline',
   },
 });
 
@@ -65,31 +99,59 @@ type Props = {
 type State = {
   inquiryToken: string,
   transactionList: Array<Object>,
-  divAccTransList: Array<Object>,
   selMoveDivAccount: Object,
-  checkedTransList: Array<Object>,
   moveTransSelMap: Map<string, Object>,
+  searchPeriod: number,
+  searchFromDate: string,
+  searchTodDate: string,
 }
 
-const transTestData = JSON.parse(
-  '{ "api_tran_id": "2cfc5541-17ab-40c7-b12f-82fde00f7f5f", "rsp_code": "A0000", "rsp_message": " ", "api_tran_dtm": "20160826111428881", "bank_tran_id": "F010226114NIBXQ5FWVG","bank_tran_date": "20160826","bank_code_tran": "097","bank_rsp_code": "000","bank_rsp_message": " ","fintech_use_num": "101600000169321934052424","balance_amt": "500000","page_index_use_yn": "N","page_index": "1","total_record_cnt": "1","page_record_cnt": "1","next_page_yn": "N","res_list": [{"tran_date": "20181207","tran_time": "024111","inout_type": "입금","tran_type": "현금","print_content": "모로코점","tran_amt": "2500","after_balance_amt": "10000000","branch_name": "분당점"},{"tran_date": "20160612","tran_time": "100000","inout_type": "출금","tran_type": "카드","print_content": "식비","tran_amt": "110000","after_balance_amt": "7000000","branch_name": "수원점"}]}',
-);
+const text = '{ "api_tran_id": "2cfc5541-17ab-40c7-b12f-82fde00f7f5f", "rsp_code": "A0000", "rsp_message": " ", "api_tran_dtm": "20160826111428881", "bank_tran_id": "F010226114NIBXQ5FWVG","bank_tran_date": "20160826","bank_code_tran": "097","bank_rsp_code": "000","bank_rsp_message": " ","fintech_use_num": "101600000169321934052424","balance_amt": "500000","page_index_use_yn": "N","page_index": "1","total_record_cnt": "1","page_record_cnt": "1","next_page_yn": "N","res_list": [{"tran_date": "20181207","tran_time": "024111","inout_type": "입금","tran_type": "현금","print_content": "모로코점","tran_amt": "2500","after_balance_amt": "10000000","branch_name": "분당점"},{"tran_date": "20160612","tran_time": "100000","inout_type": "출금","tran_type": "카드","print_content": "식비","tran_amt": "110000","after_balance_amt": "7000000","branch_name": "수원점"},{"tran_date": "20181207","tran_time": "024111","inout_type": "입금","tran_type": "현금","print_content": "식비","tran_amt": "2500","after_balance_amt": "10000000","branch_name": "모로코점"}]}';
+const transTestData = JSON.parse(text, (key, value) => {
+  if (key === 'after_balance_amt' || key === 'tran_amt') {
+    return parseInt(value);
+  }
+  return value;
+});
+
 export default class TransactionListScreen extends React.PureComponent<Props, State> {
+  static navigationOptions = {
+    title: '나누기통장 거래내역',
+  };
+
   constructor(props: any) {
     super(props);
 
     this.state = {
       inquiryToken: 'Bearer 5a965cd7-0ec3-4312-a7aa-dc8da4838e18',
       transactionList: [],
-      divAccTransList: [],
       isVisibleMoveTransModal: false,
       selMoveDivAccount: null,
       moveTransSelMap: (new Map(): Map<string, Object>),
+      searchPeriod: 3,
+      searchFromDate: '',
+      searchToDate: '',
     };
   }
 
   componentDidMount() {
-    this.searchTransList(0, 3);
+    const { searchPeriod } = this.state;
+    this.searchTransList(searchPeriod);
+  }
+
+  calDivAccTransListBalance = (OriTransList, divAccBalance) => {
+    OriTransList.forEach((transation) => {
+      transation.after_balance_amt = divAccBalance;
+      console.log(divAccBalance);
+      console.log(transation.tran_amt);
+      if (transation.inout_type === '입금') {
+        divAccBalance -= transation.tran_amt;
+      } else {
+        divAccBalance += transation.tran_amt;
+      }
+    });
+
+    return OriTransList;
   }
 
   /**
@@ -99,24 +161,40 @@ export default class TransactionListScreen extends React.PureComponent<Props, St
    * @param {number} dayPeriod 현재로부터 일 조회 기간
    * @returns null
    */
-  searchTransList = async (monthPeriod: number, dayPeriod: number) => {
+  searchTransList = async (dayPeriod: number) => {
     const { navigation } = this.props;
-    const { divAccTransList } = this.state;
-    const { divAccount } = navigation.state.params;
+    const { divAccount, fintechUseNum } = navigation.state.params;
+    const { inquiryToken } = this.state;
 
-    await this.getDivTransList(monthPeriod, dayPeriod);
-    console.log('=============searchTransList================');
-    console.log(divAccTransList);
+    // 조회 조건 설정
+    const fromDate = moment().subtract(dayPeriod, 'days');
+
+    const toDate = moment();
+
+    // 기간 설정(UI 표시를 위한)
+    this.setState({ searchPeriod: dayPeriod, searchFromDate: fromDate.format('YYYY-MM-DD'), searchToDate: toDate.format('YYYY-MM-DD') });
+
+    const resDivAccTransList = await this.getDivTransList(fromDate.format('YYYYMMDD'), toDate.format('YYYYMMDD'));
+    let divAcctransList;
     if (divAccount.isDefault) {
       const oriAccTransList = await this.requestOriAccTransList();// when default divaccount
       const filtDefAccTransList = this.filterDefDivAccTransList(this.filtCondition)(
-        oriAccTransList, divAccTransList,
+        oriAccTransList, resDivAccTransList,
       );
 
-      this.setState({ transactionList: filtDefAccTransList });
+      const divAccBalance = api.getOpenBankAccBalance(inquiryToken, fintechUseNum);
+
+      if (divAccBalance === undefined) {
+        // TODO tranList listing fail
+      } else {
+        divAcctransList = this.calDivAccTransListBalance(filtDefAccTransList, divAccBalance);
+      }
     } else {
-      this.setState({ transactionList: divAccTransList });
+      const divAccBalance = divAccount.balance;
+      divAcctransList = this.calDivAccTransListBalance(resDivAccTransList, divAccBalance);
     }
+
+    this.setState({ transactionList: divAcctransList });
   }
 
   /**
@@ -127,7 +205,9 @@ export default class TransactionListScreen extends React.PureComponent<Props, St
    * @param {Array} b 필터링 할 리스트
    * @return 필터링 된 리스트
    */
-  filterDefDivAccTransList = pred => (a, b) => a.filter(x => !b.some(y => pred(x, y)));
+  filterDefDivAccTransList = pred => (a, b) => a.filter(x => !b.some((y) => {
+    return pred(x, y);
+  }));
 
   /**
    * 필터링 조건 함수
@@ -143,19 +223,13 @@ export default class TransactionListScreen extends React.PureComponent<Props, St
    * 나누기통장 거래내역 리스트 획득 함수
    *
    * @param {number} monthPeriod 현재로부터 월 조회 기간
-   * @param {number} dayPeriod 현재로부터 일 조회 기간
+   * @param {string} fromDate 시작 조회일
+   * @param {string} toDate 종료 조회일
    * @return {Array} 나누기통장 거래내역 리스트
    */
-  getDivTransList = (monthPeriod: number, dayPeriod: number) => {
+  getDivTransList = (fromDate: string, toDate: string) => {
     const { navigation } = this.props;
     const { divAccount, otherDivAccList } = navigation.state.params;
-
-    // 조회 조건 설정
-    const fromDate = moment()
-      .subtract(monthPeriod, 'months')
-      .subtract(dayPeriod, 'days')
-      .format('YYYYMMDD');
-    const toDate = moment().format('YYYYMMDD');
 
     const searchDivIds = [];
     if (divAccount.isDefault) {
@@ -167,7 +241,7 @@ export default class TransactionListScreen extends React.PureComponent<Props, St
     }
 
     // 요청
-    api.getDivAccTransInfoList(searchDivIds, fromDate, toDate)
+    return api.getDivAccTransInfoList(searchDivIds, fromDate, toDate)
       .then(res => dispatchJsonSuccResponse(res, this.successGetDivTransList))
       .catch(handleNetworkError);
   }
@@ -181,6 +255,7 @@ export default class TransactionListScreen extends React.PureComponent<Props, St
 
     // validation
     if (moveTransSelMap.size === 0) { Alert.alert('옮길 거래내역을 선택 해 주세요.'); return; }
+    if (selMoveDivAccount === null) { Alert.alert('거래내역을 옮길 계좌를 선택 해 주세요.'); return; }
 
     // make new move list
     const moveList = [];
@@ -201,7 +276,7 @@ export default class TransactionListScreen extends React.PureComponent<Props, St
     this.setState({ isVisibleMoveTransModal: false });
 
     // refresh tranaction list
-    this.searchTransList(0, 3);
+    this.searchTransList(3);
   }
 
   /**
@@ -229,11 +304,7 @@ export default class TransactionListScreen extends React.PureComponent<Props, St
       .then(handleJsonResponse);
   };
 
-  successGetDivTransList = (resTransList) => {
-    console.log('=============successGetDivTransList===============');
-    console.log(resTransList);
-    this.setState({ divAccTransList: resTransList });
-  }
+  successGetDivTransList = resTransList => resTransList
 
   successReqOriAccTransList = (resTransInfo) => {
     // validation
@@ -249,7 +320,7 @@ export default class TransactionListScreen extends React.PureComponent<Props, St
   }
 
   failReqOriAccTransList = () => {
-    console.log("failReqOriAccTransList");
+    console.log('failReqOriAccTransList');
   }
 
   onPressTransItem = (id: string, item: Object) => {
@@ -269,15 +340,15 @@ export default class TransactionListScreen extends React.PureComponent<Props, St
     });
   };
 
-  renderTransListItem = (item, index) => {
+  renderTransListItem = (item) => {
     const { moveTransSelMap } = this.state;
 
     return (
       <TransListItem
-        id={index.toString()}
+        id={item.index.toString()}
         onPressItem={this.onPressTransItem}
-        moveTransSelMap={moveTransSelMap.get(index.toString()) !== undefined}
-        item={item}
+        selected={moveTransSelMap.get(item.index.toString()) !== undefined}
+        item={item.item}
       />
     );
   }
@@ -290,6 +361,9 @@ export default class TransactionListScreen extends React.PureComponent<Props, St
       selMoveDivAccount,
       isVisibleMoveTransModal,
       moveTransSelMap,
+      searchPeriod,
+      searchFromDate,
+      searchToDate
     } = this.state;
 
     const otherDivAccPickerItems = otherDivAccList.map(account => (
@@ -314,11 +388,12 @@ export default class TransactionListScreen extends React.PureComponent<Props, St
                   style={styles.moveAccPicker}
                   onValueChange={itemValue => this.setState({ selMoveDivAccount: itemValue })}
                 >
+                  <Picker.Item value={null} label="==선택해 주세요==" />
                   {otherDivAccPickerItems}
                 </Picker>
                 <View style={styles.moveTransModButWrap}>
                   <TouchableHighlight
-                    onPress={() => this.moveTransaction}
+                    onPress={() => this.moveTransaction()}
                   >
                     <Text>이동</Text>
                   </TouchableHighlight>
@@ -335,48 +410,57 @@ export default class TransactionListScreen extends React.PureComponent<Props, St
             </View>
           </Modal>
         </View>
-        <View style={styles.searchCommandWarp}>
-          <Text>{divAccount.description}</Text>
-          <TouchableHighlight
-            onPress={() => this.setState({ isVisibleMoveTransModal: true })}
-          >
-            <Text>거내내역 이동</Text>
-          </TouchableHighlight>
-          <View style={styles.searchTimeWrap}>
-            <TouchableHighlight onPress={() => this.searchTransList(0, 1)}>
-              <Text style={styles.tiSearPeriod}>1일</Text>
-            </TouchableHighlight>
+        <View style={styles.accInfoWarp}>
+          <View style={styles.accInfoDescWrap}>
+            <Text style={styles.desText}>{divAccount.description}</Text>
+          </View>
+          <View style={styles.accInfoBalWrap}>
+            <Text style={styles.balText}>{numberUtils.currencyformat(divAccount.balance)}</Text>
+            <Text style={styles.balUnitText}> 원</Text>
+          </View>
+          <View style={styles.accInfoCommWrap}>
             <TouchableHighlight
-              onPress={() => this.searchTransList(0, 7)}
+              onPress={() => this.setState({ isVisibleMoveTransModal: true })}
             >
-              <Text style={styles.tiSearPeriod}>7일</Text>
-            </TouchableHighlight>
-            <TouchableHighlight
-              onPress={() => this.searchTransList(1, 0)}
-            >
-              <Text style={styles.tiSearPeriod}>1달</Text>
-            </TouchableHighlight>
-            <TouchableHighlight onPress={() => this.searchTransList(3, 0)}>
-              <Text style={styles.tiSearPeriod}>3달</Text>
+              <Text style={styles.moveCommText}>거내내역 이동</Text>
             </TouchableHighlight>
           </View>
         </View>
-        <View style={styles.transListWarp}>
-          <View style={styles.transListTableHeaderRow}>
-            <Text>날짜</Text>
-            <Text>사용처</Text>
-            <Text>금액</Text>
-            <Text>잔액</Text>
+        <View style={styles.searchCommandWarp}>
+          <View style={styles.searchDateCommWrap}>
+            <TouchableHighlight onPress={() => this.searchTransList(3)}>
+              <Text style={[styles.searPeriodText, (searchPeriod === 3 ? styles.selSearPeriText : null)]}>3일</Text>
+            </TouchableHighlight>
+
+            <TouchableHighlight
+              onPress={() => this.searchTransList(7)}
+            >
+              <Text style={[styles.searPeriodText, (searchPeriod === 7 ? styles.selSearPeriText : null)]}>1주일</Text>
+            </TouchableHighlight>
+
+            <TouchableHighlight
+              onPress={() => this.searchTransList(30)}
+            >
+              <Text style={[styles.searPeriodText, (searchPeriod === 30 ? styles.selSearPeriText : null)]}>1개월</Text>
+            </TouchableHighlight>
+
+            <TouchableHighlight onPress={() => this.searchTransList(90)}>
+              <Text style={[styles.searPeriodText, (searchPeriod === 90 ? styles.selSearPeriText : null)]}>3개월</Text>
+            </TouchableHighlight>
           </View>
-          {transactionList.length > 0
-            && (
-            <FlatList
-              data={transactionList}
-              extraData={moveTransSelMap}
-              keyExtractor={(item, index) => index.toString()}
-              renderItem={this.renderTransListItem}
-            />
-            )}
+          <View style={styles.searchDateWrap}>
+            <Text>{searchFromDate}</Text>
+            <Text> ~ </Text>
+            <Text>{searchFromDate}</Text>
+          </View>
+        </View>
+        <View style={styles.transListWarp}>
+          <FlatList
+            data={transactionList}
+            extraData={moveTransSelMap}
+            keyExtractor={(item, index) => index.toString()}
+            renderItem={this.renderTransListItem}
+          />
         </View>
       </View>
     );

@@ -16,7 +16,7 @@ export default class BankAPIAuthWebView extends React.Component {
       const apiData = {
         client_id: 'l7xx4ff929f59df4407d8212fd86f7388046',
         client_secret: 'f3fc3a0536b846ca86e8470b8cd35fea',
-        redirect_uri: 'http://localhost:8880/html/callback.html',
+        redirect_uri: 'https://jb9229.github.io/openBankApiCallback/index.html',
       };
 
       postData = JSON.stringify(apiData);
@@ -48,7 +48,7 @@ export default class BankAPIAuthWebView extends React.Component {
       lang: '',
       edit_option: '',
       scope: 'login transfer',
-      redirect_uri: 'http://localhost:8880/html/callback.html',
+      redirect_uri: 'https://jb9229.github.io/openBankApiCallback/index.html',
       client_info: 'test+whatever+you+want',
       auth_type: 0,
       bg_color: '#FAFAFA',
@@ -63,15 +63,23 @@ export default class BankAPIAuthWebView extends React.Component {
 
     console.log(paramsStr);
     return (
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+      <View
+        style={{
+          flex: 1,
+          padding: 5,
+          margin: 5,
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
         <WebView
           ref={view => (this.webView = view)}
           source={{
-            // uri: `${bankOpenApiUrl_oauthAuthorize2}?${paramsStr}`,
-            uri: 'https://jb9229.github.io/openBankApiCallback/test-index.html',
+            uri: `${bankOpenApiUrl_oauthAuthorize2}?${paramsStr}`,
+            // uri: 'https://jb9229.github.io/openBankApiCallback/index.html',
           }}
           style={{
-            width: 400,
+            width: 380,
             height: 600,
             marginTop: 20,
             marginLeft: 5,

@@ -1,22 +1,23 @@
 // @flow
 import React from 'react';
 import {
-  Alert, AsyncStorage, StyleSheet, Text, View, TouchableHighlight,
+  ActivityIndicator,
+  Alert,
+  AsyncStorage,
+  StyleSheet,
+  Text,
+  View,
+  TouchableHighlight,
+  BackHandler,
 } from 'react-native';
-import moment from 'moment';
+import * as api from '../../api/api';
 import BalanceListPresenter from './presenter';
-import { handleJsonResponse, dispatchJsonResponse, dispatchJsonSuccResponse, handleNetworkError } from '../../utils/network-common';
-import {
-  CURRYSERVER_ORIACCOUNTS,
-  CURRYSERVER_DIVACCOUNTS,
-  OPENBANKSERVER_ACCOUNT_BALANCE,
-  PERSISTKEY_OPENBANKINQUIRY,
-} from '../../constants/Network';
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#fff',
+    justifyContent: 'center',
   },
   emptyAccount: {
     flex: 1,
@@ -26,10 +27,12 @@ const styles = StyleSheet.create({
 });
 
 type Props = {
-  navigation: Object
+  navigation: Object,
 };
 
 type State = {
+  userID: number,
+  isLoadingComplete: boolean,
   inquiryToken: string,
   oriAccList: Array<Object>,
   selOriAccount: {
@@ -44,21 +47,24 @@ export default class BalanceListScreen extends React.Component<Props, State> {
   constructor(props: any) {
     super(props);
     this.state = {
+      userID: 1, // it will receiv from redux after
+      isLoadingComplete: false,
+      isEmptyOriAccList: true,
       inquiryToken: 'Bearer 5a965cd7-0ec3-4312-a7aa-dc8da4838e18',
-      isEmptyOriAccList: undefined,
       oriAccList: [],
-      selOriAccount: {
-        id: 0,
-        fintech_use_num: '',
-      },
+      selOriAccount: null,
       divAccList: [],
     };
   }
 
   componentDidMount() {
-    const userID = 1; // it will receiv from redux after
+    BackHandler.addEventListener('hardwareBackPress', this.handleBackPress);
 
-    this.requestOriAccList(userID);
+    this.init();
+  }
+
+  componentWillUnmount() {
+    BackHandler.removeEventListener('hardwareBackPress', this.handleBackPress);
   }
 
   /*
@@ -86,273 +92,180 @@ export default class BalanceListScreen extends React.Component<Props, State> {
   }
 
   /**
-   * 대표 나누기통장 추가 함수
-   * @param {Object} balanceInfo 오픈뱅크 잔액요청 결과정보
-   * @returns null
+   * 화면 기동 초기 설정 함수
    */
-  addDefDivAcc = (balanceInfo: Object) => {
-    const { selOriAccount } = this.state;
-
-    // const rspCode = balanceInfo.rsp_code;
-    // if (rspCode === 'A0000') {
-    const newAccount = {
-      id: -1,
-      isDefault: true,
-      description: '한달 용돈',
-      // balance: balanceInfo.balance_amt,
-      // date: balanceInfo.bank_tran_date,
-      // bank: balanceInfo.bank_code_tran,
-      balance: 2980000,
-      date: '20181107',
-      bank: '098',
-      rspCode: balanceInfo.rsp_code,
-    };
-
-    this.setState({
-      divAccList: [newAccount],
-    });
-
-    this.requestDivAccList(selOriAccount.id);
-    // }
+  init = () => {
+    this.refreshOriAccList();
   };
 
   /**
-   * 나누기 통장 추가 함수
-   * @param {Array<Object>} divAccInfoList 추가할 나누기통장 정보 리스트
-   * @returns null
+   * 대표통장 잔액 계산 함수
+   *
+   * @param {number} oriAccBalAmount 계산할 원통장 잔액
+   * @param {Array} divAccList 계산할 나누기통장 리스트
+   *
+   * @returns divAccList 대표통장의 잔액이 계산된 나누기통장 리스트
    */
-  addDivAcc = (divAccInfoList: Array<Object>) => {
-    const calBalanceDivAccounts = this.calDefDivAccBalance(divAccInfoList);
+  calDefDivAccBalance = (oriAccBalAmount: number, divAccList: Array<Object>) => {
+    let defDivAccBalance = oriAccBalAmount;
 
-    this.setState({
-      divAccList: [...calBalanceDivAccounts, ...divAccInfoList],
-    });
-  };
-
-  /**
-   * 원통장 선택 변경
-   * @param account 변경 될 원통장
-   * @returns null
-   */
-  changeOriAcc = (account: Object) => {
-    // validation
-    if (account == null) {
-      return;
-    }
-
-    this.setState({
-      selOriAccount: account,
+    divAccList.forEach((divAccount) => {
+      defDivAccBalance -= divAccount.balance;
     });
 
-    this.refreshDivAccList();
+    return defDivAccBalance;
   };
 
   /**
    * 나누기 통장 생성 함수
+   *
    * @param {string} description 생성할 나누기통장 설명
    * @param {number} balance 생성할 나누기통장 잔액
    * @returns null
    */
   createDivAcc = (description: string, balance: number) => {
-    this.requestCreaDivAcc(description, balance);
+    const { selOriAccount } = this.state;
+
+    api.creaDivAcc(selOriAccount.id, description, balance);
+
+    this.setDivAccList(selOriAccount);
   };
 
   /**
-   * 대표통장 잔액 계산 함수
-   * @param {Array} newDivAccounts 추가될 나누기통장 리스트
-   * @returns divAccList 대표통장의 잔액이 계산된 나누기통장 리스트
+   * 대표 나누기통장 생성 함수
+   *
+   * @param {number} oriAccBalAmount 원통장 잔액
+   * @param {Object} oriAccount 생성할 대표나누기 통장의 원통장
+   * @param {Object} divAccList 생성할 대표나누기 통장의 나누기통장 리스트
+   * @returns newDefDivAccount
    */
-  calDefDivAccBalance = (newDivAccounts: Array<Object>) => {
-    const { divAccList } = this.state;
+  createDefDivAcc = (oriAccBalAmount: number, oriAccount: Object, divAccList: Array<Object>) => {
+    const defDivAccBalance = this.calDefDivAccBalance(oriAccBalAmount, divAccList);
 
-    newDivAccounts.forEach((newDivAccount) => {
-      const defaultDivAccounts = divAccList[0];
-      defaultDivAccounts.balance -= newDivAccount.balance;
+    const newDefDivAccount = {
+      id: -1,
+      isDefault: true,
+      description: oriAccount.defDivaccDescription,
+      balance: defDivAccBalance,
+    };
+
+    return newDefDivAccount;
+  };
+
+  /**
+   * 원통장 선택 변경 함수
+   *
+   * @param newSelAccount 변경 될 원통장
+   * @returns null
+   */
+  changeOriAccSel = (newSelAccount: Object) => {
+    // validation
+    if (newSelAccount == null) {
+      return;
+    }
+
+    this.setState({
+      selOriAccount: newSelAccount,
     });
 
-    return divAccList;
+    this.setDivAccList(newSelAccount);
   };
 
   /**
    * 나누기 통장 삭제 함수
-   *  1. 나누기 통장 서버 Data 삭제
-   *  2. 나누기 통장 Refresh
    *
    * @param divAccId: 나누기 통장 Server Data Id
    * @returns null
    */
-  deleteDivAcc = (id: number) => {
-    fetch(`${CURRYSERVER_DIVACCOUNTS}${id}`, {
-      method: 'DELETE',
-      headers: {
-        Accept: 'application/json',
-      },
-    })
-      .then(handleJsonResponse)
-      .then(() => {
-        this.refreshDivAccList();
-      })
-      .catch((error) => {
-        Alert.alert('handleLoadingError', error.message);
-        return false;
-      });
-  };
-
-  /**
-   * 원통장 리스트 요청
-   * @param userID 사용자 아이디
-   * @returns null
-   */
-  requestOriAccList = (userID: number) => {
-    fetch(`${CURRYSERVER_ORIACCOUNTS}${userID}`)
-      .then(handleJsonResponse)
-      .then((resJson) => {
-        this.successReqOriAccList(resJson);
-      })
-      .catch((error) => {
-        Alert.alert('원통장 리스트 요청에 실패 했습니다, 통신상태 확인 후 다시 시도해 주세요.', error.message);
-        return error;
-      });
-  };
-
-  /**
-   * 원통장 선택 변경이 있을 때, 나누기통장 리스트 재설정 함수
-   * @returns null
-   */
-  refreshDivAccList = () => {
-    this.requestOriAccBalance();
-    // this.successReqOriAccBalance({a: 'ab'}); // Test
-  };
-
-  /**
-   * 원통장 잔액 오픈은행서버에 요청 함수
-   * @returns null
-   */
-  requestOriAccBalance = () => {
-    const { inquiryToken, selOriAccount } = this.state;
-
-    // valiation
-    if (selOriAccount == null) { return; }
-
-    const paramData = {
-      fintech_use_num: selOriAccount.fintech_use_num,
-      tran_dtime: moment().format('YYYYMMDDHHmmss'),
-    };
-
-    fetch(
-      `${OPENBANKSERVER_ACCOUNT_BALANCE}?fintech_use_num=${encodeURIComponent(
-        paramData.fintech_use_num,
-      )}&tran_dtime=${encodeURIComponent(paramData.tran_dtime)}`,
-      {
-        headers: {
-          Accept: 'application/json',
-          'Content-Type': 'application/json; charset=UTF-8',
-          Authorization: inquiryToken,
-        },
-      },
-    )
-      .then(res => dispatchJsonSuccResponse(res, this.successReqOriAccBalance))
-      .catch(error => handleNetworkError(error, this.successReqOriAccBalance)); // Test code
-  }
-
-  /**
-   * 나누기통장 리스트 커리서버에 요청 함수
-   * @param oriAccID 원통장 아이디
-   * @returns null
-   */
-  requestDivAccList = (oriAccID: number) => fetch(`${CURRYSERVER_DIVACCOUNTS}${oriAccID}`)
-    .then(handleJsonResponse)
-    .then((responseJson) => {
-      this.successReqDivAccList(responseJson);
-      return responseJson;
-    })
-    .catch((error) => {
-      Alert.alert('나누기통장 잔액리스트 요청 실패, 통신상태 확인 후 다시 시도해 주세요.', error.message);
-      return error;
-    });
-
-  /**
-   * 커리서버에 나누기 통장추가 요청 함수
-   * @param {string} description
-   * @param {number} balance
-   * @returns null
-   */
-  requestCreaDivAcc = (description: string, balance: number) => {
+  deleteDivAcc = (divAccId: number) => {
     const { selOriAccount } = this.state;
 
-    fetch(`${CURRYSERVER_DIVACCOUNTS}`, {
-      method: 'POST',
-      headers: {
-        Accept: 'application/json',
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        oriAccID: selOriAccount.id,
-        description,
-        balance,
-      }),
-    })
-      .then(handleJsonResponse)
-      .then((responseJson) => {
-        this.successReqCreaDivAcc(responseJson);
-        return true;
+    api.deleteDivAcc(divAccId).then(() => {
+      this.setDivAccList(selOriAccount);
+    });
+  };
+
+  /**
+   * 나누기 통장 리스트 설정 함수
+   *
+   * @param {Object} oriAccount 나누기통장 리스트의 원통장
+   * @returns null
+   */
+  setDivAccList = async (oriAccount: Object) => {
+    // variables
+    const { inquiryToken } = this.state;
+    const newDivAccList = [];
+
+    const oriAccbalanceAmt = await api.getOpenBankAccBalance(
+      inquiryToken,
+      oriAccount.fintechUseNum,
+    );
+
+    if (oriAccbalanceAmt === undefined) {
+      return;
+    }
+
+    api
+      .getDivAccList(oriAccount.id)
+      .then((divAccList) => {
+        const defDivAccount = this.createDefDivAcc(oriAccbalanceAmt, oriAccount, divAccList);
+
+        newDivAccList.push(defDivAccount);
+        divAccList.forEach(divAccount => newDivAccList.push(divAccount));
+
+        this.setState({ divAccList: newDivAccList });
       })
       .catch((error) => {
-        Alert.alert('나누기통장 생성 요청 실패, 통신상태 확인 후 다시 시도해 주세요.', error.message);
-        return false;
+        // TODO 재시도 기능 구현 Error 팝업을 띄워우고 wait 해~
+        Alert.alert('나누기통장 잔액리스트 요청에 문제가 발생 했습니다.', error.message);
+
+        return undefined;
       });
   };
 
   /**
-   * 원통장 리스트 요청 성공
-   * @returns null
+   * 원통장 리스트 새로고침 함수
+   *
+   * @return null
    */
-  successReqOriAccList = (resOriAccounts: Array<Object>) => {
-    let isEmpty = true;
+  refreshOriAccList = () => {
+    const { userID } = this.state;
 
-    if (resOriAccounts.length > 0) {
-      isEmpty = false;
-      this.setState({ selOriAccount: resOriAccounts[0] });
-    }
+    const newOriAccList = api
+      .getOriAccList(userID)
+      .then((resOriAccountList) => {
+        // Validation
+        if (resOriAccountList.length === 0) {
+          // 원통장 존재안함
+          this.setState({ isEmptyOriAccList: true });
+          return;
+        }
 
-    this.setState({
-      isEmptyOriAccList: isEmpty,
-      oriAccList: resOriAccounts,
-    });
+        const defaultOriAccount = resOriAccountList[0];
 
-    this.refreshDivAccList();
+        this.setState({ oriAccList: resOriAccountList, selOriAccount: defaultOriAccount });
+
+        this.setDivAccList(defaultOriAccount);
+
+        this.setState({ isLoadingComplete: true, isEmptyOriAccList: false });
+      })
+      .catch((error) => {
+        this.setState({ isLoadingComplete: true, isEmptyOriAccList: undefined });
+
+        Alert.alert(`접속이 원활하지 않습니다, 종료 또는 재시도 하세요.${error.message}`, '', [
+          { text: '종료', onPress: () => BackHandler.exitApp() },
+          { text: '재시도', onPress: () => this.refreshOriAccList() },
+        ]);
+      });
   };
-
-  /**
-   * 원통장 잔액 요청 성공 시, 호출 함수
-   * @param {Object} balanceInfo 원통장 잔액
-   * @returns null
-   */
-  successReqOriAccBalance = (balanceInfo: Object) => {
-    this.addDefDivAcc(balanceInfo);
-  }
-
-  /**
-   * 나누기통장정보 리스트 요청 성공 시 호출 함수, 나누기통장 리스트에 추가
-   * @param {Array<Object>} divAccInfoList 나누기통장정보 리스트
-   * @returns null
-   */
-  successReqDivAccList = (divAccInfoList: Array<Object>) => {
-    this.addDivAcc(divAccInfoList);
-  }
-
-  /**
-   * 나누기통장 생성 요청 성공 시 호출 함수, 나누기통장 리스트에 추가
-   * @param {Object} newDivAccInfo 신규생성된 나누기통장정보
-   * @returns null
-   */
-  successReqCreaDivAcc = (newDivAccInfo: Object) => {
-    this.addDivAcc([newDivAccInfo]);
-  }
 
   render() {
     const {
-      isEmptyOriAccList, oriAccList, selOriAccount, divAccList,
+      isEmptyOriAccList,
+      oriAccList,
+      selOriAccount,
+      divAccList,
+      isLoadingComplete,
     } = this.state;
     const { navigation } = this.props;
 
@@ -360,15 +273,31 @@ export default class BalanceListScreen extends React.Component<Props, State> {
       oriAccList,
       selOriAccount,
       divAccList,
-      changeOriAcc: this.changeOriAcc,
+      changeOriAccSel: this.changeOriAccSel,
       createDivAcc: this.createDivAcc,
       deleteDivAcc: this.deleteDivAcc,
       ...this.props,
     };
 
+    if (!isLoadingComplete) {
+      return (
+        <View style={styles.container}>
+          <ActivityIndicator size="large" color="#0000ff" />
+        </View>
+      );
+    }
+
+    if (isEmptyOriAccList === undefined) {
+      return (
+        <View style={styles.container}>
+          <Text>네트워크 통신에 문제가 있습니다, 재시도 해주세요</Text>
+        </View>
+      );
+    }
+
     return (
       <View style={styles.container}>
-        {isEmptyOriAccList && (
+        {isEmptyOriAccList ? (
           <View style={styles.emptyAccount}>
             <TouchableHighlight
               onPress={() => {
@@ -378,8 +307,9 @@ export default class BalanceListScreen extends React.Component<Props, State> {
               <Text>나눌 통장이 없습니다, 나누기 할 은행 통장을 등록 해 주세요~</Text>
             </TouchableHighlight>
           </View>
+        ) : (
+          <BalanceListPresenter {...presenterProps} />
         )}
-        {!isEmptyOriAccList && <BalanceListPresenter {...presenterProps} />}
       </View>
     );
   }

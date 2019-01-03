@@ -30,16 +30,12 @@ const styles = StyleSheet.create({
     width: 190,
     height: 50,
   },
-  accCtlButton: {},
-  accCtlButtonView: {
-    marginRight: 10,
-  },
 });
 type Props = {
   oriAccList: Array<Object>,
   divAccList: Array<Object>,
   selOriAccount: Object,
-  changeOriAcc: Function,
+  changeOriAccSel: Function,
   createDivAcc: Function,
   deleteDivAcc: Function,
 };
@@ -48,7 +44,7 @@ export default function BalanceListPresenter(props_: Props) {
     oriAccList,
     divAccList,
     selOriAccount,
-    changeOriAcc,
+    changeOriAccSel,
     createDivAcc,
     deleteDivAcc,
     navigation,
@@ -58,13 +54,14 @@ export default function BalanceListPresenter(props_: Props) {
       <OriAccSelOrganism
         oriAccList={oriAccList}
         selOriAccount={selOriAccount}
-        changeOriAcc={changeOriAcc}
+        changeOriAccSel={changeOriAccSel}
       />
       <DivAccListOrganism
         divAccList={divAccList}
         createDivAcc={createDivAcc}
         deleteDivAcc={deleteDivAcc}
         navigation={navigation}
+        fintechUseNum={selOriAccount.fintech_use_num}
       />
     </View>
   );

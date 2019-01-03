@@ -3,6 +3,7 @@ import React from 'react';
 import {
   Alert, StyleSheet, Text, TouchableHighlight, View,
 } from 'react-native';
+import * as numberUtils from '../../utils/number-common';
 
 const styles = StyleSheet.create({
   cardWrap: {
@@ -49,32 +50,21 @@ const styles = StyleSheet.create({
 
 type Props = {
   divAccount: Object,
+  deleteAccount: Function,
   navigateTransListScreen: Function,
 };
 
 export default class AccountCard extends React.Component<Props> {
-  constructor() {
-    super();
-
-    Number.prototype.format = function () {
-      if (this == 0) return 0;
-
-      const reg = /(^[+-]?\d+)(\d{3})/;
-      let n = `${this}`;
-
-      while (reg.test(n)) n = n.replace(reg, '$1' + ',' + '$2');
-
-      return n;
-    };
-  }
+  cancelDeleAcc = () => {};
 
   deleteAccountCard = () => {
+    const { deleteAccount, divAccount } = this.props;
     Alert.alert(
       '주의',
       '정말 삭제 합니까?',
       [
-        { text: 'Cancel', onPress: () => console.log('Cancel Pressed'), style: 'cancel' },
-        { text: 'OK', onPress: () => this.props.deleteAccount(this.props.divAccount.accId) },
+        { text: 'OK', onPress: () => deleteAccount(divAccount.id) },
+        { text: 'CANCEL', onPress: () => this.cancelDeleAcc() },
       ],
       { cancelable: false },
     );
@@ -82,7 +72,7 @@ export default class AccountCard extends React.Component<Props> {
 
   render() {
     const { divAccount, navigateTransListScreen } = this.props;
-    const balanceStr = divAccount.balance.format();
+    const balanceStr = numberUtils.currencyformat(divAccount.balance);
 
     return (
       <View style={styles.cardWrap}>

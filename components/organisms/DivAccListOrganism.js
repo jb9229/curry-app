@@ -1,11 +1,12 @@
 // @flow
 import React from 'react';
 import {
-  FlatList, ScrollView, TouchableHighlight, Text, StyleSheet, View,
+  Button, FlatList, ScrollView, Text, StyleSheet, View,
 } from 'react-native';
 
 import AccountCard from './AccountCard';
 import DivAccFormModal from './DivAccFormModal';
+import colors from '../../constants/Colors';
 
 const styles = StyleSheet.create({
   divAccountListWrap: {
@@ -14,7 +15,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   divAccListTitleWrap: {
+    flexDirection: 'row',
     marginBottom: 10,
+    alignItems: 'center',
+  },
+  divAcclistTitleText: {
+    fontSize: 19,
+    marginRight: 3,
   },
   accountList: {
     flex: 1,
@@ -33,6 +40,7 @@ type Props = {
   deleteDivAcc: Function,
   createDivAcc: Function,
   navigation: Object,
+  fintechUseNum: string,
 };
 
 type States = {
@@ -59,7 +67,7 @@ export default class DivAccListOrganism extends React.Component<Props, States> {
   };
 
   navigateTransListScreen = (divAccount) => {
-    const { navigation, divAccList } = this.props;
+    const { navigation, divAccList, fintechUseNum } = this.props;
 
     const otherDivAccList = [];
     divAccList.forEach((account) => {
@@ -68,7 +76,7 @@ export default class DivAccListOrganism extends React.Component<Props, States> {
       }
     });
 
-    navigation.navigate('TransList', { divAccount, otherDivAccList });
+    navigation.navigate('TransList', { divAccount, otherDivAccList, fintechUseNum });
   };
 
   render() {
@@ -86,7 +94,13 @@ export default class DivAccListOrganism extends React.Component<Props, States> {
     return (
       <View style={styles.divAccountListWrap}>
         <View style={styles.divAccListTitleWrap}>
-          <Text>나누기 통장</Text>
+          <Text style={styles.divAcclistTitleText}>나누기 통장 리스트</Text>
+          <Button
+            onPress={() => this.setVisibleDivAccFormModal(true)}
+            title="추가"
+            color={colors.mainColorDark}
+            accessibilityLabel="나누기 통장 추가 버튼"
+          />
         </View>
         {divAccList.length > 0 && (
           <ScrollView divAccScrollWrapStyle={styles.divAccScrollWrap}>
@@ -102,11 +116,6 @@ export default class DivAccListOrganism extends React.Component<Props, States> {
                   />
                 )}
               />
-            </View>
-            <View>
-              <TouchableHighlight onPress={() => this.setVisibleDivAccFormModal(true)}>
-                <Text>통장 나누기 추가</Text>
-              </TouchableHighlight>
             </View>
           </ScrollView>
         )}

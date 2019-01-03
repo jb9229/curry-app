@@ -16,16 +16,36 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
-  addDivAccModalWrap: {
+  formWrap: {
     backgroundColor: '#FFF',
     padding: 20,
   },
-  addDivAccModButWrap: {
+  titleWrap: {
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  descWrap: {
+    flexDirection: 'row',
+  },
+  balWrap: {
+    flexDirection: 'row',
+  },
+  commButWrap: {
     flexDirection: 'row',
     justifyContent: 'space-between',
   },
   errorMessage: {
     color: 'red',
+  },
+  descTextInput: {
+    width: 150,
+  },
+  balTextInput: {
+    width: 150,
+  },
+  titleText: {
+    fontSize: 16,
+    textDecorationLine: 'underline',
   },
 });
 
@@ -48,7 +68,7 @@ export default class DivAccFormModal extends React.Component<Props, State> {
 
     this.state = {
       addDescription: '',
-      addBalance: 0,
+      addBalance: '',
       addDescErrorMessage: '',
       addBalErrorMessage: '',
     };
@@ -98,10 +118,7 @@ export default class DivAccFormModal extends React.Component<Props, State> {
   render() {
     const { isVisibleDivAccFormModal, setVisibleDivAccFormModal, defDivAccBalance } = this.props;
     const {
-      addDescription,
-      addBalance,
-      addBalErrorMessage,
-      addDescErrorMessage,
+      addDescription, addBalance, addBalErrorMessage, addDescErrorMessage,
     } = this.state;
     return (
       <View style={styles.container}>
@@ -114,32 +131,47 @@ export default class DivAccFormModal extends React.Component<Props, State> {
           }}
         >
           <View style={styles.addDivAccModalContainer}>
-            <View style={styles.addDivAccModalWrap}>
-              <Text>통장 설명: </Text>
-              <TextInput
-                placeholder="통장 설명"
-                value={addDescription}
-                onChangeText={(text) => {
-                  this.setState({ addDescription: text });
-                  const v = validate('text', text, true);
-                  this.setState({ addDescErrorMessage: v[1] });
-                }}
-              />
-              <Text style={styles.errorMessage}>{addDescErrorMessage}</Text>
-              <Text>초기 금액: </Text>
-              <TextInput
-                placeholder="최대 가능 금액: "
-                keyboardType="numeric"
-                value={`${addBalance}`}
-                onChangeText={(text) => {
-                  const value = Number.parseInt(text, 10);
-                  const v = validate('decimalMax', value, true, defDivAccBalance);
-                  this.setState({ addBalance: value, addBalErrorMessage: v[1] });
-                }}
-              />
-              <Text style={styles.errorMessage}>{addBalErrorMessage}</Text>
+            <View style={styles.formWrap}>
+              <View style={styles.titleWrap}>
+                <Text style={styles.titleText}>나누기통장 추가</Text>
+              </View>
+              <View style={styles.descWrap}>
+                <Text>통장 설명: </Text>
+                <TextInput
+                  placeholder="통장 설명"
+                  value={addDescription}
+                  onChangeText={(text) => {
+                    this.setState({ addDescription: text });
+                    const v = validate('text', text, true);
+                    this.setState({ addDescErrorMessage: v[1] });
+                  }}
+                  style={styles.descTextInput}
+                />
+              </View>
+              <View>
+                <Text style={styles.errorMessage}>{addDescErrorMessage}</Text>
+              </View>
+              <View style={styles.balWrap}>
+                <Text>초기 금액: </Text>
+                <TextInput
+                  placeholder="최대 가능 금액: "
+                  keyboardType="numeric"
+                  value={`${addBalance}`}
+                  onChangeText={(balanceStr) => {
+                    let balance = '';
+                    if (balanceStr !== '') { balance = Number.parseInt(balanceStr, 10); }
+                    const v = validate('decimalMax', balance, true, defDivAccBalance);
+                    this.setState({ addBalance: balance, addBalErrorMessage: v[1] });
+                  }}
+                  style={styles.balTextInput}
+                />
 
-              <View style={styles.addDivAccModButWrap}>
+              </View>
+              <View>
+                <Text style={styles.errorMessage}>{addBalErrorMessage}</Text>
+              </View>
+
+              <View style={styles.commButWrap}>
                 <TouchableHighlight
                   onPress={() => {
                     this.createDivAcc();
