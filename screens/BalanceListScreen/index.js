@@ -3,7 +3,6 @@ import React from 'react';
 import {
   ActivityIndicator,
   Alert,
-  AsyncStorage,
   StyleSheet,
   Text,
   View,
@@ -12,6 +11,7 @@ import {
 } from 'react-native';
 import * as api from '../../api/api';
 import BalanceListPresenter from './presenter';
+import { getOpenBakAuthInfo } from '../../common/AuthToken';
 
 const styles = StyleSheet.create({
   container: {
@@ -54,6 +54,15 @@ export default class BalanceListScreen extends React.Component<Props, State> {
       oriAccList: [],
       selOriAccount: null,
       divAccList: [],
+      openBankAuthInfo: {
+        access_token: '',
+        token_type: '',
+        expires_in: '',
+        refresh_token: '',
+        scope: '',
+        user_seq_no: '',
+      },
+      errorNotice: '',
     };
   }
 
@@ -67,34 +76,20 @@ export default class BalanceListScreen extends React.Component<Props, State> {
     BackHandler.removeEventListener('hardwareBackPress', this.handleBackPress);
   }
 
-  /*
-   * 인증 토근 설정 함수, 미구현
-   */
-  async setInquiryToken() {
-    try {
-      const inquiryToken = await AsyncStorage.getItem(PERSISTKEY_OPENBANKINQUIRY);
-
-      if (inquiryToken != null && inquiryToken !== '') {
-        this.setState({
-          inquiryToken,
-        });
-      } else {
-        this.setState({
-          inquiryToken: undefined,
-        });
-      }
-    } catch (error) {
-      Alert.alert('getInquiryToken', error.message);
-      return false;
-    }
-
-    return true;
-  }
-
   /**
    * 화면 기동 초기 설정 함수
    */
-  init = () => {
+  init = async () => {
+    const openBankAuthInfo = await getOpenBakAuthInfo();
+    console.log('=== openBankAuthInfo ===');
+    console.log(openBankAuthInfo);
+
+    if (openBankAuthInfo === undefined) {
+      this.setState({ errorNotice: '오픈뱅크 접근 권한 요청에 실패 했습니다.' });
+    } else {
+      this.setState({ errorNotice: '' });
+    }
+
     this.refreshOriAccList();
   };
 
@@ -266,6 +261,7 @@ export default class BalanceListScreen extends React.Component<Props, State> {
       selOriAccount,
       divAccList,
       isLoadingComplete,
+      errorNotice,
     } = this.state;
     const { navigation } = this.props;
 
@@ -297,6 +293,9 @@ export default class BalanceListScreen extends React.Component<Props, State> {
 
     return (
       <View style={styles.container}>
+        <View>
+          <Text>{errorNotice}</Text>
+        </View>
         {isEmptyOriAccList ? (
           <View style={styles.emptyAccount}>
             <TouchableHighlight
@@ -310,6 +309,11 @@ export default class BalanceListScreen extends React.Component<Props, State> {
         ) : (
           <BalanceListPresenter {...presenterProps} />
         )}
+        <View>
+          <TouchableHighlight onPress={() => this.init()}>
+            <Text>디버그 token</Text>
+          </TouchableHighlight>
+        </View>
       </View>
     );
   }

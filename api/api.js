@@ -6,11 +6,36 @@ import {
   CURRYSERVER_TRANSINFO,
   OPENBANKSERVER_ACCOUNT_BALANCE,
   OPENBANKSERVER_ACCOUNT_TRANSACTIONLIST,
+  OPENBANK_TOKEN,
 } from '../constants/Network';
 import { handleJsonResponse } from '../utils/network-common';
+import openbankInfo from '../constants/OpenBankInfo';
 
 // ================ OpenBank Server ==============
 
+export function refreshOpenBankAuthToken(refreshToken) {
+  const paramData = {
+    client_id: openbankInfo.client_id,
+    client_secret: openbankInfo.secret,
+    refresh_token: refreshToken,
+    scope: 'login inquiry',
+    grant_type: 'refresh_token',
+  };
+
+  return fetch(
+    `${OPENBANK_TOKEN}?
+    client_id=${encodeURIComponent(paramData.client_id)}
+    &client_secret=${encodeURIComponent(paramData.client_secret)}
+    &refresh_token=${encodeURIComponent(paramData.refresh_token)}
+    &scope=${encodeURIComponent(paramData.scope)}
+    &grant_type=${encodeURIComponent(paramData.grant_type)}`,
+    {
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+      },
+    },
+  );
+}
 /**
  * 원통장 잔액 오픈은행서버에 요청 함수
  * @returns null
@@ -172,8 +197,7 @@ export function getOriAccList(userId) {
  * @returns null
  */
 export function getDivAccList(oriAccID) {
-  return fetch(`${CURRYSERVER_DIVACCOUNTS}${oriAccID}`)
-    .then(handleJsonResponse);
+  return fetch(`${CURRYSERVER_DIVACCOUNTS}${oriAccID}`).then(handleJsonResponse);
 }
 
 /**

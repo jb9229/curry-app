@@ -26,12 +26,18 @@ export default class LinksScreen extends React.Component {
           <Text>초기 나누기 통장 별칭: </Text>
           <TextInput placeholder="디폴트 쪼갠 통장명(디폴트로 여기서 입출금이 일어남)" />
         </View>
+
         <View>
           <Button
-            onPress={() => this.props.navigation.navigate('BankApiAuthModal')}
+            onPress={() => this.props.navigation.navigate('OpenBankAuth', { type: 'AUTH_ACCOUNT' })}
             title="통장 생성"
             color="#841584"
             accessibilityLabel="Learn more about this purple button"
+          />
+          <Button
+            onPress={() => this.props.navigation.navigate('OpenBankAuth', { type: 'REAUTH' })}
+            title="재인증"
+            accessibilityLabel="Re Authorizition"
           />
         </View>
       </ScrollView>
