@@ -5,6 +5,11 @@ import {
 
 import { OPENBANK_AUTHORIZE2, OPENBANK_REAUTHORIZE2 } from '../../../constants/Network';
 import Pkey from '../../../constants/Persistkey';
+import * as api from '../../../api/api';
+import { getOpenBankAuthInfo } from '../../../common/AuthToken';
+
+const TYPE_REAUTH = 'REAUTH';
+const ADD_ACCOUNT = 'ADD_ACCOUNT';
 
 export default class OpenBankAuthWebView extends React.Component {
   constructor(props) {
@@ -12,17 +17,67 @@ export default class OpenBankAuthWebView extends React.Component {
 
     this.state = {
       isWebViewLoadingComplete: false,
-      authTokenData: null,
+      noticeMSG:
+        '오픈뱅크 사용 권한이 만료 되었습니다(재인증 기간 만료 또는 1년 정기적 재인증), 재인증 해 주세요',
     };
   }
 
-  receiveWebViewMSG = async (webViewData) => {
-    console.log(`######### receiveWebViewMSG ############${webViewData}`);
+  /**
+   * 사용자정보에서 fintech_use_num 추출 함수
+   * @param {Array} oriAccList 핀테크이용번호 리스트
+   * @param {Array<Object>} accountListInfo 계좌목록정보
+   */
+  getOpenbankAccInfo = (oriAccList, accountListInfo) => {
+    const accList = accountListInfo.res_list;
+
+    // validation
+    if (accList.length !== oriAccList.length + 1) {
+      Alert.alet(
+        '유효하지 않은 핀테크이용번호가 존재하여 원통장의 핀테크이용번호를 찾을 수 없습니다, 관리자에게 문의 부탁 드립니다.',
+      );
+    }
+
+    // make FintechUseNum List
+    const fintechUseNumList = [];
+    oriAccList.forEach((oriAccount) => {
+      fintechUseNumList.push(oriAccount.fintechUseNum);
+    });
+
+    accList.forEach((accInfo) => {
+      const candidateFUN = accInfo.fintech_use_num;
+      if (!fintechUseNumList.includes(candidateFUN)) {
+        return accInfo;
+      }
+    });
+
+    return undefined;
+  };
+
+  /**
+   * 웹뷰 종료 함수
+   */
+  closeWebView = () => {
     const { navigation } = this.props;
 
-    const webData = JSON.parse(webViewData);
+    this.setState({ noticeMSG: '곧(10초) 창이 닫힙니다~' });
 
+    setTimeout(() => {
+      navigation.navigate('Home', { action: 'RELOAD' });
+    }, 5000);
+  };
+
+  /**
+   * 웹페이지 메세지 처리 함수
+   * @param {string} webViewMSG Webview에서 전달된 메세지
+   */
+  receiveWebViewMSG = async (webViewMSG) => {
+    const { navigation } = this.props;
+    const { type, userId, defDivAccDescription } = navigation.state.params;
+
+    const webData = JSON.parse(webViewMSG);
     let postData = null;
+
+    // 오픈뱅크정보 요청
     if (webData.type === 'ASK_BANKAPIINFO') {
       const apiData = {
         client_id: 'l7xx4ff929f59df4407d8212fd86f7388046',
@@ -33,22 +88,50 @@ export default class OpenBankAuthWebView extends React.Component {
       postData = JSON.stringify(apiData);
     }
 
+    // 웹뷰 종료 요청
     if (webData.type === 'ASK_WEBVIEWCLOSE') {
       navigation.navigate('Links');
     }
 
+    // 인증토큰 저장 요청
     if (webData.type === 'ASK_SAVETOKEN') {
       const tokenData = {
         access_token: webData.data.access_token,
         token_type: webData.data.token_type,
         expires_in: webData.data.expires_in,
+        refresh_token: webData.data.refresh_token,
         scope: webData.data.scope,
-        client_use_code: webData.data.client_use_code,
+        user_seq_no: webData.data.user_seq_no,
       };
 
-      this.setState({ authTokenData: tokenData });
+      await getOpenBankAuthInfo(JSON.stringify(tokenData));
 
-      await this.saveAuthToken(tokenData);
+      if (type === ADD_ACCOUNT) {
+        // fintech_use_num 알아내기
+        const accountListInfo = api.getAccountList(tokenData.user_seq_no);
+
+        if (accountListInfo === undefined) {
+          return;
+        }
+
+        const oriAccList = api.getOriAccList(userId);
+
+        const openBankAccInfo = this.getOpenbankAccInfo(oriAccList, accountListInfo);
+        // 원통장 추가 요청
+
+        const newOriAccount = api.createOriAcc(
+          userId,
+          openBankAccInfo.account_alias,
+          openBankAccInfo.fintech_use_num,
+          defDivAccDescription,
+        );
+
+        if (newOriAccount === undefined) {
+          // TODO Exception proccess
+        }
+      }
+
+      this.closeWebView();
     }
 
     if (postData != null) {
@@ -56,25 +139,15 @@ export default class OpenBankAuthWebView extends React.Component {
     }
   };
 
-  saveAuthToken = async (tokenData) => {
-    try {
-      await AsyncStorage.setItem(Pkey.PKEY_OPENBANKAUTHTOKEN, JSON.stringify(tokenData));
-    } catch (error) {
-      Alert.alert(error.name, error.message);
-      return false;
-    }
-
-    return true;
-  };
-
   render() {
-    const { type } = this.props.navigation.state.params;
-    const { isWebViewLoadingComplete } = this.state;
+    const { navigation } = this.props;
+    const { type } = navigation.state.params;
+    const { isWebViewLoadingComplete, noticeMSG } = this.state;
 
     let authUrl;
-    if (type === 'AUTH_ACCOUNT') {
+    if (type === ADD_ACCOUNT) {
       authUrl = OPENBANK_AUTHORIZE2;
-    } else if (type === 'REAUTH') {
+    } else if (type === TYPE_REAUTH) {
       authUrl = OPENBANK_REAUTHORIZE2;
     }
 
@@ -111,8 +184,6 @@ export default class OpenBankAuthWebView extends React.Component {
       .map(k => `${encodeURIComponent(k)}=${encodeURIComponent(paramData[k])}`)
       .join('&');
 
-    console.log(paramsStr);
-    const { authTokenData } = this.state;
     return (
       <View
         style={{
@@ -123,6 +194,11 @@ export default class OpenBankAuthWebView extends React.Component {
           justifyContent: 'center',
         }}
       >
+        {type === TYPE_REAUTH ? (
+          <View>
+            <Text>{noticeMSG}</Text>
+          </View>
+        ) : null}
         <WebView
           ref={(view) => {
             this.webView = view;
@@ -135,7 +211,7 @@ export default class OpenBankAuthWebView extends React.Component {
           style={{
             width: 380,
             height: 600,
-            marginTop: 20,
+            marginTop: 5,
             marginLeft: 5,
             marginRight: 5,
           }}
@@ -144,22 +220,7 @@ export default class OpenBankAuthWebView extends React.Component {
 
         {!isWebViewLoadingComplete && <ActivityIndicator size="large" color="#0000ff" />}
 
-        <Button onPress={() => this.props.navigation.navigate('Links')} title="Close Modal" />
-
-        <View>
-          <View>
-            <Text>Token Data</Text>
-          </View>
-          {authTokenData !== null ? (
-            <View>
-              <Text>{authTokenData.access_token}</Text>
-              <Text>{authTokenData.token_type}</Text>
-              <Text>{authTokenData.expires_in}</Text>
-              <Text>{authTokenData.scope}</Text>
-              <Text>{authTokenData.client_use_code}</Text>
-            </View>
-          ) : null}
-        </View>
+        <Button onPress={() => this.closeWebView()} title="Close Modal" />
       </View>
     );
   }

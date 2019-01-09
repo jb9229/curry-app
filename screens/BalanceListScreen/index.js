@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import * as api from '../../api/api';
 import BalanceListPresenter from './presenter';
-import { getOpenBakAuthInfo } from '../../common/AuthToken';
+import { getOpenBankAuthInfo } from '../../common/AuthToken';
 
 const styles = StyleSheet.create({
   container: {
@@ -33,7 +33,6 @@ type Props = {
 type State = {
   userID: number,
   isLoadingComplete: boolean,
-  inquiryToken: string,
   oriAccList: Array<Object>,
   selOriAccount: {
     id: number,
@@ -41,6 +40,7 @@ type State = {
   },
   divAccList: Array<Object>,
   isEmptyOriAccList?: boolean,
+  openBankAuthInfo: object,
 };
 
 export default class BalanceListScreen extends React.Component<Props, State> {
@@ -50,7 +50,6 @@ export default class BalanceListScreen extends React.Component<Props, State> {
       userID: 1, // it will receiv from redux after
       isLoadingComplete: false,
       isEmptyOriAccList: true,
-      inquiryToken: 'Bearer 5a965cd7-0ec3-4312-a7aa-dc8da4838e18',
       oriAccList: [],
       selOriAccount: null,
       divAccList: [],
@@ -80,15 +79,21 @@ export default class BalanceListScreen extends React.Component<Props, State> {
    * 화면 기동 초기 설정 함수
    */
   init = async () => {
-    const openBankAuthInfo = await getOpenBakAuthInfo();
+    const { navigation } = this.props;
+
+    const openBankAuthInfo = await getOpenBankAuthInfo();
     console.log('=== openBankAuthInfo ===');
     console.log(openBankAuthInfo);
 
     if (openBankAuthInfo === undefined) {
       this.setState({ errorNotice: '오픈뱅크 접근 권한 요청에 실패 했습니다.' });
-    } else {
-      this.setState({ errorNotice: '' });
+
+      navigation.navigate('OpenBankAuth', { type: 'REAUTH' });
+
+      return;
     }
+
+    await this.setState({ errorNotice: '', openBankAuthInfo });
 
     this.refreshOriAccList();
   };
@@ -188,11 +193,11 @@ export default class BalanceListScreen extends React.Component<Props, State> {
    */
   setDivAccList = async (oriAccount: Object) => {
     // variables
-    const { inquiryToken } = this.state;
+    const { openBankAuthInfo } = this.state;
     const newDivAccList = [];
 
     const oriAccbalanceAmt = await api.getOpenBankAccBalance(
-      inquiryToken,
+      openBankAuthInfo,
       oriAccount.fintechUseNum,
     );
 
@@ -226,7 +231,7 @@ export default class BalanceListScreen extends React.Component<Props, State> {
   refreshOriAccList = () => {
     const { userID } = this.state;
 
-    const newOriAccList = api
+    api
       .getOriAccList(userID)
       .then((resOriAccountList) => {
         // Validation
@@ -261,6 +266,7 @@ export default class BalanceListScreen extends React.Component<Props, State> {
       selOriAccount,
       divAccList,
       isLoadingComplete,
+      openBankAuthInfo,
       errorNotice,
     } = this.state;
     const { navigation } = this.props;
@@ -269,6 +275,7 @@ export default class BalanceListScreen extends React.Component<Props, State> {
       oriAccList,
       selOriAccount,
       divAccList,
+      openBankAuthInfo,
       changeOriAccSel: this.changeOriAccSel,
       createDivAcc: this.createDivAcc,
       deleteDivAcc: this.deleteDivAcc,

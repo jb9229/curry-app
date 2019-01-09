@@ -1,4 +1,6 @@
 import { Alert } from 'react-native';
+import openbankInfo from '../constants/OpenBankInfo';
+import Exception from '../common/Exception';
 
 export function handleJsonResponse(res) {
   if (res.ok) {
@@ -14,6 +16,30 @@ export function handleJsonResponse(res) {
 
   const error = new Error(errorMessage);
   error.response = res;
+  throw error;
+}
+
+export function handleOpenBankJsonResponse(res) {
+  if (res.ok) {
+    if (res.status === 204) {
+      // NO_CONTENTS
+      return res;
+    }
+
+    return res.json().then((responseJson) => {
+      const rspCode = responseJson.rsp_code;
+
+      if (rspCode === openbankInfo.API_RESPONSECODE_OK) {
+        return responseJson;
+      }
+
+      throw new Exception(rspCode, responseJson.rsp_message);
+    });
+  }
+
+  const errorMessage = `${res.statusText}, ${res.url}`;
+
+  const error = new Exception(res.status, errorMessage);
   throw error;
 }
 

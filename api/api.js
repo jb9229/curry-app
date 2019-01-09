@@ -7,11 +7,45 @@ import {
   OPENBANKSERVER_ACCOUNT_BALANCE,
   OPENBANKSERVER_ACCOUNT_TRANSACTIONLIST,
   OPENBANK_TOKEN,
+  OPENBANK_USERINFO,
+  OPENBANK_ACCOUNT_CANCEL,
 } from '../constants/Network';
-import { handleJsonResponse } from '../utils/network-common';
+import { handleJsonResponse, handleOpenBankJsonResponse } from '../utils/network-common';
 import openbankInfo from '../constants/OpenBankInfo';
+import Exception from '../common/Exception';
 
-// ================ OpenBank Server ==============
+/**
+ * 접근토큰 요청 함수
+ * @param {Object} openBankAuthInfo 토큰정보
+ */
+function getAccessToken(openBankAuthInfo) {
+  const headerAuth = `${openBankAuthInfo.token_type} ${openBankAuthInfo.access_token}`;
+
+  return headerAuth;
+}
+
+// ===================== OpenBank Server ===================
+/**
+ * 사용자 정보조회 요청 API 함수
+ * @param {Object} accessTokenInfo 접근 토큰
+ * @param {string} userSeqNo 사용자일련번호
+ */
+export function getUserInfo(accessTokenInfo, userSeqNo) {
+  return fetch(`${OPENBANK_USERINFO}?user_seq_no=${encodeURIComponent(userSeqNo)}`, {
+    headers: {
+      Authorization: getAccessToken(accessTokenInfo),
+    },
+  })
+    .then(handleOpenBankJsonResponse)
+    .catch((error) => {
+      Alert.alert(
+        '오픈뱅크 사용자정보 조회에 문제가 있습니다, 재 시도해 주세요.',
+        `[${error.name}] ${error.message}`,
+      );
+
+      return undefined;
+    });
+}
 
 export function refreshOpenBankAuthToken(refreshToken) {
   const paramData = {
@@ -30,24 +64,133 @@ export function refreshOpenBankAuthToken(refreshToken) {
     &scope=${encodeURIComponent(paramData.scope)}
     &grant_type=${encodeURIComponent(paramData.grant_type)}`,
     {
+      method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
       },
     },
-  );
+  )
+    .then(handleOpenBankJsonResponse)
+    .catch((error) => {
+      Alert.alert(
+        '오픈뱅크 토큰 Refresh 요청에 문제가 있습니다, 재 시도해 주세요.',
+        `[${error.name}] ${error.message}`,
+      );
+
+      return undefined;
+    });
 }
+
+/**
+ * 계좌해지 api
+ * 
+ * @param {Object} accessTokenInfo 토큰정보
+ * @param {string} fintechUseNum 핀테크이용번호
+ */
+export function calcelOpenBankAcc(accessTokenInfo, fintechUseNum) {
+  const paramData = {
+    scope: 'inquiry',
+    fintech_use_num: fintechUseNum,
+  };
+
+  return fetch(
+    `${OPENBANK_ACCOUNT_CANCEL}?
+    &scope=${encodeURIComponent(paramData.scope)}
+    &fintech_use_num=${encodeURIComponent(paramData.fintech_use_num)}`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: getAccessToken(accessTokenInfo),
+        'Content-Type': 'application/json; charset=UTF-8',
+      },
+    },
+  )
+    .then(handleOpenBankJsonResponse)
+    .catch((error) => {
+      Alert.alert(
+        '오픈뱅크 계좌 해지 요청에 문제가 있습니다, 재 시도해 주세요.',
+        `[${error.name}] ${error.message}`,
+      );
+
+      return undefined;
+    });
+}
+
+/**
+ * Curry앱과 사용자 간의 연결 해제 API
+ *
+ * @param {Object} accessTokenInfo 토큰정보
+ * @param {string} fintechUseNum 핀테크이용번호
+ */
+export function unlinkOpenBankAcc(accessTokenInfo) {
+  const paramData = {
+    client_use_code: openbankInfo.client_use_code,
+    user_seq_no: accessTokenInfo.user_seq_no,
+  };
+
+  return fetch(
+    `${OPENBANK_ACCOUNT_CANCEL}?
+    &client_use_code=${encodeURIComponent(paramData.client_use_code)}
+    &user_seq_no=${encodeURIComponent(paramData.user_seq_no)}`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json; charset=UTF-8',
+      },
+    },
+  )
+    .then(handleOpenBankJsonResponse)
+    .catch((error) => {
+      Alert.alert(
+        '오픈뱅크 Curry앱과 사용자 간의 연결 해제 요청에 문제가 있습니다, 재 시도해 주세요.',
+        `[${error.name}] ${error.message}`,
+      );
+
+      return undefined;
+    });
+}
+
+/**
+ * 등록된 계좌목록 조회 함수
+ * @param {Object} accessTokenInfo 접근 토큰
+ * @param {string} userSeqNo 사용자일련번호
+ * @param {string} isInclCancAccount 해지계좌포함여부 (Y:해지계좌포함, N:해지계좌불포함)
+ * @param {string} sort 정렬순서 (D:Descending, A:Ascending)
+ */
+export function getAccountList(accessTokenInfo, userSeqNo, isInclCancAccount, sort) {
+  return fetch(
+    `${OPENBANK_USERINFO}?user_seq_no=${encodeURIComponent(userSeqNo)}
+    &include_cancel_yn=${encodeURIComponent(isInclCancAccount)}
+    &sort_order=${encodeURIComponent(sort)}`,
+    {
+      headers: {
+        Authorization: getAccessToken(accessTokenInfo),
+      },
+    },
+  )
+    .then(handleOpenBankJsonResponse)
+    .catch((error) => {
+      Alert.alert(
+        '오픈뱅크 계좌목록 조회에 문제가 있습니다, 재 시도해 주세요.',
+        `[${error.name}] ${error.message}`,
+      );
+
+      return undefined;
+    });
+}
+
 /**
  * 원통장 잔액 오픈은행서버에 요청 함수
  * @returns null
  */
-export function getOpenBankAccBalance(inquiryToken, fintechUseNum, succFunction, failFunction) {
-  // valiation
-
+export function getOpenBankAccBalance(accessTokenInfo, fintechUseNum, succFunction, failFunction) {
+  // Set Params
   const paramData = {
     fintechUseNum,
     tran_dtime: moment().format('YYYYMMDDHHmmss'),
   };
 
+  // Request Account Balance API
   return fetch(
     `${OPENBANKSERVER_ACCOUNT_BALANCE}?fintech_use_num=${encodeURIComponent(
       paramData.fintechUseNum,
@@ -56,40 +199,32 @@ export function getOpenBankAccBalance(inquiryToken, fintechUseNum, succFunction,
       headers: {
         Accept: 'application/json',
         'Content-Type': 'application/json; charset=UTF-8',
-        Authorization: inquiryToken,
+        Authorization: getAccessToken(accessTokenInfo),
       },
     },
   )
-    .then(handleJsonResponse)
-    .then((responseJson) => {
+    .then(handleOpenBankJsonResponse)
+    .then((balanceData) => {
       if (succFunction !== undefined) {
-        succFunction(responseJson);
+        succFunction(balanceData);
       }
 
-      // const rspCode = responseJson.rsp_code;
-      // if (rspCode === 'A0000') {
-      // balance: responseJson.balance_amt,
-      // date: responseJson.bank_tran_date,
-      // bank: responseJson.bank_code_tran,
-      // }
+      const balanceStr = balanceData.balance_amt;
+      const balance = parseInt(balanceStr, 10);
 
-      // const balanceStr = responseJson.balance_amt;
-      // const balance = parseInt(balanceStr, 10);
-      // return balance;
-      return 100000; // Test Code
+      return balance;
     })
     .catch((error) => {
       Alert.alert(
-        '나누기통장 잔액리스트 요청 실패, 통신상태 확인 후 다시 시도해 주세요\n(반복 실패시 문제현상 리포트 해주시면 신속히 조치 하겠습니다)',
-        error.message,
+        '오픈뱅크 정보요청에 문제가 있습니다, 재 시도해 주세요.',
+        `[${error.name}] ${error.message}`,
       );
 
       if (failFunction != null) {
         failFunction();
       }
 
-      // return undefined;
-      return 100000; // Test Code
+      return undefined;
     });
 }
 
@@ -127,6 +262,27 @@ export function getOpenBankTransList(inquiryToken, divAccount) {
 }
 
 // ================ Curry Server ==============
+export function createOriAcc(userId, description, fintechUseNum, defDivaccDescription) {
+  return fetch(`${CURRYSERVER_ORIACCOUNTS}`, {
+    method: 'POST',
+    headers: {
+      Accept: 'application/json',
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      userId,
+      description,
+      fintechUseNum,
+      defDivaccDescription,
+    }),
+  })
+    .then(handleJsonResponse)
+    .catch((error) => {
+      Alert.alert('원통장 생성 요청 실패, 통신상태 확인 후 다시 시도해 주세요.', error.message);
+      return undefined;
+    });
+}
+
 /**
  * 커리서버에 나누기 통장추가 요청 함수
  * @param {number} oriAccId 생성할 나누기통장의 원통장 아이디
@@ -134,7 +290,7 @@ export function getOpenBankTransList(inquiryToken, divAccount) {
  * @param {number} balance 생성할 나누기통장 잔액
  * @returns Promise
  */
-export function creaDivAcc(oriAccId, description, balance) {
+export function createDivAcc(oriAccId, description, balance) {
   return fetch(`${CURRYSERVER_DIVACCOUNTS}`, {
     method: 'POST',
     headers: {

@@ -2,44 +2,54 @@ import { AsyncStorage, Alert } from 'react-native';
 import * as api from '../api/api';
 import PKey from '../constants/Persistkey';
 
+/**
+ * 토큰 정보 앱스토리지에 저장 함수
+ * @param {Object} tokenInfo 토큰 정보
+ */
+export async function saveOpenBankAuthInfo(tokenInfoStr) {
+  try {
+    await AsyncStorage.setItem(PKey.PKEY_OPENBANKAUTHTOKEN, tokenInfoStr);
+  } catch (error) {
+    Alert.alert(error.name, error.message);
+    return false;
+  }
+
+  return true;
+}
+
+/**
+ * 토큰 재인증
+ * @param {string} currentDateTime 현재시간
+ * @param {Object} openBankAuthInfo 토큰정보
+ */
 export async function reAuthToken(currentDateTime, openBankAuthInfo) {
   const refreshTokenExpireTime = openBankAuthInfo.expires_in + 1000 * 60 * 60 * 24 * 10;
 
   if (currentDateTime > refreshTokenExpireTime) {
     // refresh 토큰 만료시 재인증
-    this.props.navigation.navigate('OpenBankAuth', { type: 'REAUTH' });
 
     return undefined;
   }
   // refresh 토큰으로 Token 재 발급
-  const response = await api.refreshOpenBankAuthToken(openBankAuthInfo.refresh_token).then();
+  const newOpenBankAuthInfo = await api.refreshOpenBankAuthToken(openBankAuthInfo.refresh_token);
 
-  const newOpenBankAuthInfo = response.text().then(text => text);
+  saveOpenBankAuthInfo(newOpenBankAuthInfo);
 
   return newOpenBankAuthInfo;
 }
 
 /**
- * 오픈뱅크 AuthToken 유효기간 체크 함수
+ * 오픈뱅크 접속 토큰정보 요청 함수
  */
-export async function getOpenBakAuthInfo() {
+export async function getOpenBankAuthInfo() {
   try {
-    console.log(`getOpenBakAuthInfo Start: ${PKey.PKEY_OPENBANKAUTHTOKEN}`);
-    const keys = await AsyncStorage.getAllKeys((err, inKeys) => {
-      console.log(`key/value: ${inKeys} / ?`);
-    });
-    console.log(`getAllKeys: ${keys}`);
-    keys.forEach(async (inKey) => {
-      const value = await AsyncStorage.getItem(inKey);
+    const openBankAuthInfoStr = await AsyncStorage.getItem(PKey.PKEY_OPENBANKAUTHTOKEN);
+    console.log('=== AsyncStorage openBankAuthInfoStr ===');
+    console.log(openBankAuthInfoStr);
 
-      console.log(`key/value: ${inKey} / ${value}`);
-    });
+    if (openBankAuthInfoStr != null && openBankAuthInfoStr !== '') {
+      const openBankAuthInfo = JSON.parse(openBankAuthInfoStr);
 
-    const openBankAuthInfo = await AsyncStorage.getItem(PKey.PKEY_OPENBANKAUTHTOKEN);
-    console.log('=== AsyncStorage openBankAuthInfo ===');
-    console.log(openBankAuthInfo);
-
-    if (openBankAuthInfo != null && openBankAuthInfo !== '') {
       const acessTokenExpireTime = openBankAuthInfo.expires_in;
       const currentDateTime = new Date().getMilliseconds();
 
